@@ -25,18 +25,9 @@ const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:5173')
   .map(s => s.trim());
 
 app.use(cors({
-  origin: (origin, callback) => {
-    // In production, we'll allow all origins for now to prevent CORS blocking issues
-    // Alternatively, verify the FRONTEND_URL environment variable has no trailing slashes
-    if (
-      !origin ||
-      allowedOrigins.includes(origin) ||
-      true // Temporary bypass to fix the immediate login issue
-    ) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
+  origin: function(origin, callback) {
+    // Force allow all, never throw an error
+    callback(null, true);
   },
   credentials: true,
 }));
