@@ -35,7 +35,7 @@ router.put('/rates/:id', async (req, res, next) => {
       .update(goldRates)
       .set(parsed)
       .where(eq(goldRates.id, req.params.id));
-    if ((result as any).affectedRows === 0) throw new AppError(404, 'Gold rate not found');
+    if ((result as any)[0].affectedRows === 0) throw new AppError(404, 'Gold rate not found');
     const [updated] = await db.select().from(goldRates).where(eq(goldRates.id, req.params.id));
     res.json({ status: 'success', data: updated });
   } catch (err) {
@@ -100,7 +100,7 @@ router.put('/types/:id', async (req, res, next) => {
       .update(goldTypeConfigs)
       .set(parsed)
       .where(eq(goldTypeConfigs.id, req.params.id));
-    if ((result as any).affectedRows === 0) throw new AppError(404, 'Gold type config not found');
+    if ((result as any)[0].affectedRows === 0) throw new AppError(404, 'Gold type config not found');
     const [updated] = await db.select().from(goldTypeConfigs).where(eq(goldTypeConfigs.id, req.params.id));
     res.json({ status: 'success', data: updated });
   } catch (err) {

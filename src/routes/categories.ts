@@ -63,7 +63,7 @@ router.put('/:id', async (req, res, next) => {
       .update(categories)
       .set({ ...parsed, updatedAt: new Date() })
       .where(eq(categories.id, req.params.id));
-    if ((result as any).affectedRows === 0) throw new AppError(404, 'Category not found');
+    if ((result as any)[0].affectedRows === 0) throw new AppError(404, 'Category not found');
     const [updated] = await db.select().from(categories).where(eq(categories.id, req.params.id));
     res.json({ status: 'success', data: updated });
   } catch (err) {

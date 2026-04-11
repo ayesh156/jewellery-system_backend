@@ -266,7 +266,7 @@ router.put('/:id', async (req, res, next) => {
       .set({ ...productData, lastUpdated: new Date() })
       .where(eq(products.id, req.params.id));
 
-    if ((result as any).affectedRows === 0) throw new AppError(404, 'Product not found');
+    if ((result as any)[0].affectedRows === 0) throw new AppError(404, 'Product not found');
     const [updated] = await db.select().from(products).where(eq(products.id, req.params.id));
 
     // Replace gemstones if provided
@@ -320,7 +320,7 @@ router.patch('/:id/stock', async (req, res, next) => {
       .update(products)
       .set({ stockQuantity: quantity, lastUpdated: new Date() })
       .where(eq(products.id, req.params.id));
-    if ((result as any).affectedRows === 0) throw new AppError(404, 'Product not found');
+    if ((result as any)[0].affectedRows === 0) throw new AppError(404, 'Product not found');
     const [updated] = await db.select().from(products).where(eq(products.id, req.params.id));
     res.json({ status: 'success', data: updated });
   } catch (err) {

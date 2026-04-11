@@ -227,7 +227,7 @@ router.put('/:id', async (req, res, next) => {
       .set({ ...invoiceData, updatedAt: new Date() })
       .where(eq(invoices.id, req.params.id));
 
-    if ((result as any).affectedRows === 0) throw new AppError(404, 'Invoice not found');
+    if ((result as any)[0].affectedRows === 0) throw new AppError(404, 'Invoice not found');
     const [updated] = await db.select().from(invoices).where(eq(invoices.id, req.params.id));
 
     // Replace items if provided
@@ -286,7 +286,7 @@ router.post('/:id/payments', async (req, res, next) => {
         updatedAt: new Date(),
       })
       .where(eq(invoices.id, req.params.id));
-    if ((updateResult as any).affectedRows === 0) throw new AppError(404, 'Invoice not found');
+    if ((updateResult as any)[0].affectedRows === 0) throw new AppError(404, 'Invoice not found');
 
     const [updatedInvoice] = await db.select().from(invoices).where(eq(invoices.id, req.params.id));
 

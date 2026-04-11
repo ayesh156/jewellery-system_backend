@@ -139,7 +139,7 @@ router.put('/:id', async (req, res, next) => {
       .update(customers)
       .set({ ...parsed, updatedAt: new Date() })
       .where(eq(customers.id, req.params.id));
-    if ((result as any).affectedRows === 0) throw new AppError(404, 'Customer not found');
+    if ((result as any)[0].affectedRows === 0) throw new AppError(404, 'Customer not found');
     const [updated] = await db.select().from(customers).where(eq(customers.id, req.params.id));
     res.json({ status: 'success', data: updated });
   } catch (err) {

@@ -56,65 +56,63 @@ const nextSchema = z.object({
 router.post('/next', async (req, res, next) => {
   try {
     const { entityType, shopCode } = nextSchema.parse(req.body);
-
-    // Try atomic increment
-    const result = await db
-      .update(counters)
-      .set({ lastNumber: sql`${counters.lastNumber} + 1` })
-      .where(and(eq(counters.entityType, entityType), eq(counters.shopCode, shopCode)));
-
-    if ((result as any).affectedRows > 0) {
-      const [updated] = await db
-        .select()
-        .from(counters)
-        .where(and(eq(counters.entityType, entityType), eq(counters.shopCode, shopCode)));
-      const paddedNumber = updated.lastNumber.toString().padStart(updated.paddingLength, '0');
-      const formatted = `${shopCode}${paddedNumber}`;
-      const formattedId = `${shopCode}-${updated.prefix}-${paddedNumber}`;
-
-      return res.json({
-        status: 'success',
-        data: {
-          entityType: updated.entityType,
-          shopCode: updated.shopCode,
-          prefix: updated.prefix,
-          number: updated.lastNumber,
-          formatted,
-          formattedId,
-        },
-      });
-    }
-
-    // Counter doesn't exist — auto-create with default prefix
     const prefix = DEFAULT_PREFIXES[entityType] || entityType.toUpperCase().slice(0, 4);
 
-    await db
-      .insert(counters)
-      .values({
-        id: `counter-${shopCode}-${entityType}`,
-        entityType,
-        shopCode,
-        prefix,
-        lastNumber: 1,
-        paddingLength: 5,
-      });
-
-    const [created] = await db
+    // Check if counter exists
+    const [existing] = await db
       .select()
       .from(counters)
       .where(and(eq(counters.entityType, entityType), eq(counters.shopCode, shopCode)));
 
-    const paddedNumber = created.lastNumber.toString().padStart(created.paddingLength, '0');
+    if (existing) {
+      // Counter exists — atomically increment
+      await db
+        .update(counters)
+        .set({ lastNumber: sql`${counters.lastNumber} + 1` })
+        .where(and(eq(counters.entityType, entityType), eq(counters.shopCode, shopCode)));
+    } else {
+      // Counter doesn't exist — auto-create with default prefix
+      try {
+        await db
+          .insert(counters)
+          .values({
+            id: `counter-${shopCode}-${entityType}`,
+            entityType,
+            shopCode,
+            prefix,
+            lastNumber: 1,
+            paddingLength: 5,
+          });
+      } catch (insertErr: any) {
+        // Race condition: another request created it first — just increment
+        if (insertErr?.errno === 1062 || insertErr?.code === 'ER_DUP_ENTRY') {
+          await db
+            .update(counters)
+            .set({ lastNumber: sql`${counters.lastNumber} + 1` })
+            .where(and(eq(counters.entityType, entityType), eq(counters.shopCode, shopCode)));
+        } else {
+          throw insertErr;
+        }
+      }
+    }
+
+    // Read the final value
+    const [counter] = await db
+      .select()
+      .from(counters)
+      .where(and(eq(counters.entityType, entityType), eq(counters.shopCode, shopCode)));
+
+    const paddedNumber = counter.lastNumber.toString().padStart(counter.paddingLength, '0');
     const formatted = `${shopCode}${paddedNumber}`;
-    const formattedId = `${shopCode}-${prefix}-${paddedNumber}`;
+    const formattedId = `${shopCode}-${counter.prefix}-${paddedNumber}`;
 
     res.json({
       status: 'success',
       data: {
-        entityType: created.entityType,
-        shopCode: created.shopCode,
-        prefix: created.prefix,
-        number: created.lastNumber,
+        entityType: counter.entityType,
+        shopCode: counter.shopCode,
+        prefix: counter.prefix,
+        number: counter.lastNumber,
         formatted,
         formattedId,
       },
@@ -214,7 +212,7 @@ router.put('/:entityType', async (req, res, next) => {
       .set(setFields)
       .where(and(eq(counters.entityType, entityType), eq(counters.shopCode, parsed.shopCode)));
 
-    if ((result as any).affectedRows === 0) {
+    if ((result as any)[0].affectedRows === 0) {
       res.status(404).json({ status: 'error', message: `Counter not found for ${entityType} / ${parsed.shopCode}` });
       return;
     }

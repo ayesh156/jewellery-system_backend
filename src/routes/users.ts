@@ -277,7 +277,7 @@ router.put('/:id', async (req, res, next) => {
       .update(users)
       .set(setFields)
       .where(eq(users.id, req.params.id));
-    if ((result as any).affectedRows === 0) throw new AppError(404, 'User not found');
+    if ((result as any)[0].affectedRows === 0) throw new AppError(404, 'User not found');
 
     const [updated] = await db
       .select({

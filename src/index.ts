@@ -95,7 +95,7 @@ body::before{content:'';position:absolute;top:-50%;left:-50%;width:200%;height:2
 </head>
 <body>
 <div class="particles">
-${Array.from({length:15},(_,i)=>`<div class="particle" style="left:${Math.random()*100}%;animation-duration:${8+Math.random()*12}s;animation-delay:${Math.random()*8}s;width:${1+Math.random()*2}px;height:${1+Math.random()*2}px"></div>`).join('')}
+${Array.from({length:15},(_)=>`<div class="particle" style="left:${Math.random()*100}%;animation-duration:${8+Math.random()*12}s;animation-delay:${Math.random()*8}s;width:${1+Math.random()*2}px;height:${1+Math.random()*2}px"></div>`).join('')}
 </div>
 <div class="container">
 <div class="card">
