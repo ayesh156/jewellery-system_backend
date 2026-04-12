@@ -230,6 +230,7 @@ router.post('/', async (req, res, next) => {
       data: { ...created, items: createdItems },
     });
   } catch (err) {
+    console.error('POST /api/invoices error:', err);
     if (err instanceof z.ZodError) {
       res.status(400).json({ status: 'error', message: 'Validation failed', errors: err.errors });
       return;
