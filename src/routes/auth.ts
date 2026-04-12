@@ -68,6 +68,7 @@ router.post('/login', async (req, res, next) => {
           phone: user.phone,
           role: user.role,
           shopCode: user.shopCode,
+          pawnBillFormat: user.pawnBillFormat || 'A4',
         },
       },
     });
@@ -106,6 +107,7 @@ router.get('/me', authenticate, async (req, res, next) => {
         role: user.role,
         shopCode: user.shopCode,
         isActive: user.isActive,
+        pawnBillFormat: user.pawnBillFormat || 'A4',
         lastLoginAt: user.lastLoginAt,
         createdAt: user.createdAt,
       },
@@ -151,6 +153,36 @@ router.put('/change-password', authenticate, async (req, res, next) => {
       .where(eq(users.id, user.id));
 
     res.json({ status: 'success', message: 'Password changed successfully' });
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      res.status(400).json({ status: 'error', message: 'Validation failed', errors: err.errors });
+      return;
+    }
+    next(err);
+  }
+});
+
+// ==========================================
+// PUT /api/auth/preferences — Update user preferences
+// ==========================================
+
+const preferencesSchema = z.object({
+  pawnBillFormat: z.enum(['A4', '80mm']).optional(),
+});
+
+router.put('/preferences', authenticate, async (req, res, next) => {
+  try {
+    const data = preferencesSchema.parse(req.body);
+
+    const setFields: Record<string, any> = { updatedAt: new Date() };
+    if (data.pawnBillFormat !== undefined) setFields.pawnBillFormat = data.pawnBillFormat;
+
+    await db
+      .update(users)
+      .set(setFields)
+      .where(eq(users.id, req.user!.userId));
+
+    res.json({ status: 'success', message: 'Preferences updated' });
   } catch (err) {
     if (err instanceof z.ZodError) {
       res.status(400).json({ status: 'error', message: 'Validation failed', errors: err.errors });

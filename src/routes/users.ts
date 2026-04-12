@@ -28,6 +28,7 @@ router.get('/', async (_req, res, next) => {
         role: users.role,
         shopCode: users.shopCode,
         isActive: users.isActive,
+        pawnBillFormat: users.pawnBillFormat,
         lastLoginAt: users.lastLoginAt,
         createdAt: users.createdAt,
         updatedAt: users.updatedAt,
@@ -57,6 +58,7 @@ router.get('/:id', async (req, res, next) => {
         role: users.role,
         shopCode: users.shopCode,
         isActive: users.isActive,
+        pawnBillFormat: users.pawnBillFormat,
         lastLoginAt: users.lastLoginAt,
         createdAt: users.createdAt,
         updatedAt: users.updatedAt,
@@ -201,6 +203,7 @@ const updateUserSchema = z.object({
   shopCode: z.string().min(1).max(10).toUpperCase().optional(),
   isActive: z.boolean().optional(),
   password: z.string().min(6).optional(),
+  pawnBillFormat: z.enum(['A4', '80mm']).optional(),
 });
 
 router.put('/:id', async (req, res, next) => {
@@ -234,6 +237,7 @@ router.put('/:id', async (req, res, next) => {
     if (data.role !== undefined) setFields.role = data.role;
     if (data.shopCode !== undefined) setFields.shopCode = data.shopCode;
     if (data.isActive !== undefined) setFields.isActive = data.isActive;
+    if (data.pawnBillFormat !== undefined) setFields.pawnBillFormat = data.pawnBillFormat;
 
     // Hash new password if provided
     if (data.password) {

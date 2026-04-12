@@ -170,6 +170,9 @@ export const companyInfo = mysqlTable('company_info', {
   currency: varchar('currency', { length: 10 }).default('LKR'),
   invoiceTerms: text('invoice_terms'),
   clearanceTerms: text('clearance_terms'),
+  pawnTerms: text('pawn_terms'),
+  pawnInterestRate: decimal('pawn_interest_rate', { precision: 5, scale: 2 }).default('5.00'),
+  pawnInterestEnabled: boolean('pawn_interest_enabled').notNull().default(true),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
 
@@ -318,6 +321,13 @@ export const clearances = mysqlTable('clearances', {
   // Clearance-specific
   clearanceReason: text('clearance_reason'),
 
+  // Pawning-specific
+  monthlyInterestRate: decimal('monthly_interest_rate', { precision: 5, scale: 2 }).default('5.00'),
+  interestEnabled: boolean('interest_enabled').notNull().default(true),
+  pawnDate: varchar('pawn_date', { length: 10 }),
+  redemptionDate: varchar('redemption_date', { length: 10 }),
+  customerNic: varchar('customer_nic', { length: 20 }),
+
   // Notes
   notes: text('notes'),
 
@@ -387,6 +397,7 @@ export const users = mysqlTable('users', {
   role: userRoleEnum.notNull().default('sales'),
   shopCode: varchar('shop_code', { length: 10 }).notNull().default('A'),
   isActive: boolean('is_active').notNull().default(true),
+  pawnBillFormat: varchar('pawn_bill_format', { length: 10 }).default('A4'),
   lastLoginAt: timestamp('last_login_at'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),

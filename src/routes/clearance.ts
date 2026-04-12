@@ -49,6 +49,11 @@ const createClearanceSchema = z.object({
   dueDate: z.string().max(10).nullish(),
   status: z.enum(['draft', 'pending', 'paid', 'partial', 'cancelled', 'refunded']).default('draft'),
   clearanceReason: z.string().nullish(),
+  monthlyInterestRate: z.string().nullish(),
+  interestEnabled: z.boolean().default(true),
+  pawnDate: z.string().max(10).nullish(),
+  redemptionDate: z.string().max(10).nullish(),
+  customerNic: z.string().max(20).nullish(),
   notes: z.string().nullish(),
   createdBy: z.string().max(100).nullish(),
   createdByUserId: z.string().max(50).nullish(),
@@ -119,12 +124,29 @@ router.get('/', async (req, res, next) => {
       itemsByClearance.set(item.clearanceId, existing);
     }
 
+    // Fetch latest customer data for all clearances
+    const customerIds = [...new Set(allClearances.map(c => c.customerId))];
+    const allCustomers = customerIds.length > 0
+      ? await db.select().from(customers).where(sql`${customers.id} IN ${customerIds}`)
+      : [];
+    const customerMap = new Map(allCustomers.map(c => [c.id, c]));
+
     res.json({
       status: 'success',
-      data: allClearances.map(c => ({
-        ...c,
-        items: itemsByClearance.get(c.id) || [],
-      })),
+      data: allClearances.map(c => {
+        const cust = customerMap.get(c.customerId);
+        return {
+          ...c,
+          // Override with latest customer data
+          ...(cust ? {
+            customerName: cust.name,
+            customerPhone: cust.phone,
+            customerAddress: cust.address ? `${cust.address}${cust.city ? ', ' + cust.city : ''}` : c.customerAddress,
+            customerNic: cust.nic || c.customerNic,
+          } : {}),
+          items: itemsByClearance.get(c.id) || [],
+        };
+      }),
       pagination: {
         page: pageNum,
         limit: limitNum,
@@ -146,14 +168,26 @@ router.get('/:id', async (req, res, next) => {
     const [clearance] = await db.select().from(clearances).where(eq(clearances.id, req.params.id));
     if (!clearance) throw new AppError(404, 'Clearance not found');
 
-    const [items, clrPayments] = await Promise.all([
+    const [items, clrPayments, [customer]] = await Promise.all([
       db.select().from(clearanceItems).where(eq(clearanceItems.clearanceId, req.params.id)),
       db.select().from(clearancePayments).where(eq(clearancePayments.clearanceId, req.params.id)),
+      db.select().from(customers).where(eq(customers.id, clearance.customerId)),
     ]);
 
     res.json({
       status: 'success',
-      data: { ...clearance, items, payments: clrPayments },
+      data: {
+        ...clearance,
+        // Override with latest customer data
+        ...(customer ? {
+          customerName: customer.name,
+          customerPhone: customer.phone,
+          customerAddress: customer.address ? `${customer.address}${customer.city ? ', ' + customer.city : ''}` : clearance.customerAddress,
+          customerNic: customer.nic || clearance.customerNic,
+        } : {}),
+        items,
+        payments: clrPayments,
+      },
     });
   } catch (err) {
     next(err);
@@ -173,6 +207,10 @@ router.post('/', async (req, res, next) => {
     const [customer] = await db.select().from(customers).where(eq(customers.id, parsed.customerId));
     if (!customer) throw new AppError(400, 'Customer not found');
 
+    // Check for duplicate clearance number
+    const [existing] = await db.select().from(clearances).where(eq(clearances.clearanceNumber, parsed.clearanceNumber));
+    if (existing) throw new AppError(409, `Pawn ticket ${parsed.clearanceNumber} already exists. Please try again.`);
+
     // Insert clearance
     await db.insert(clearances).values({
       ...clearanceData,
@@ -182,15 +220,26 @@ router.post('/', async (req, res, next) => {
 
     const [created] = await db.select().from(clearances).where(eq(clearances.id, clearanceData.id));
 
-    // Insert items
-    await db.insert(clearanceItems).values(
-      items.map(item => ({ ...item, clearanceId: created.id }))
-    );
+    // Insert items — use unique IDs to avoid collisions
+    try {
+      await db.insert(clearanceItems).values(
+        items.map((item, idx) => ({
+          ...item,
+          id: `${created.id}-item-${idx + 1}`,
+          clearanceId: created.id,
+        }))
+      );
+    } catch (itemErr: any) {
+      // If items insert fails, clean up the clearance to avoid orphan records
+      console.error('Failed to insert clearance items, cleaning up:', itemErr?.message);
+      await db.delete(clearances).where(eq(clearances.id, created.id));
+      throw new AppError(500, 'Failed to save pawn ticket items. Please try again.');
+    }
 
     // If there's a payment, record it
     if (parseFloat(parsed.amountPaid) > 0 && parsed.paymentMethod) {
       await db.insert(clearancePayments).values({
-        id: `cpay-${Date.now()}`,
+        id: `cpay-${created.id}-${Date.now()}`,
         clearanceId: created.id,
         amount: parsed.amountPaid,
         method: parsed.paymentMethod,
@@ -206,6 +255,7 @@ router.post('/', async (req, res, next) => {
       data: { ...created, items: createdItems },
     });
   } catch (err) {
+    console.error('POST /api/clearance error:', err);
     if (err instanceof z.ZodError) {
       res.status(400).json({ status: 'error', message: 'Validation failed', errors: err.errors });
       return;
@@ -295,6 +345,59 @@ router.post('/:id/payments', async (req, res, next) => {
       status: 'success',
       data: { payment, clearance: updatedClearance },
     });
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      res.status(400).json({ status: 'error', message: 'Validation failed', errors: err.errors });
+      return;
+    }
+    next(err);
+  }
+});
+
+// ==========================================
+// POST /api/clearance/:id/redeem — Redeem pawned items
+// ==========================================
+
+router.post('/:id/redeem', async (req, res, next) => {
+  try {
+    const parsed = z.object({
+      redemptionDate: z.string().max(10),
+      amountPaid: z.string(),
+      paymentMethod: z.enum(['cash', 'card', 'bank-transfer', 'cheque', 'credit', 'upi', 'other']),
+      reference: z.string().max(100).nullish(),
+      notes: z.string().nullish(),
+    }).parse(req.body);
+
+    const [clearance] = await db.select().from(clearances).where(eq(clearances.id, req.params.id));
+    if (!clearance) throw new AppError(404, 'Pawn ticket not found');
+
+    // Record the payment
+    await db.insert(clearancePayments).values({
+      id: `cpay-redeem-${Date.now()}`,
+      clearanceId: req.params.id,
+      amount: parsed.amountPaid,
+      method: parsed.paymentMethod,
+      date: parsed.redemptionDate,
+      reference: parsed.reference,
+      notes: parsed.notes || 'Redemption payment',
+      createdAt: new Date(),
+    });
+
+    // Update clearance as redeemed (paid)
+    const totalPaid = parseFloat(clearance.amountPaid) + parseFloat(parsed.amountPaid);
+    await db.update(clearances).set({
+      status: 'paid',
+      redemptionDate: parsed.redemptionDate,
+      amountPaid: totalPaid.toFixed(2),
+      balanceDue: '0',
+      paymentMethod: parsed.paymentMethod,
+      updatedAt: new Date(),
+    }).where(eq(clearances.id, req.params.id));
+
+    const [updated] = await db.select().from(clearances).where(eq(clearances.id, req.params.id));
+    const items = await db.select().from(clearanceItems).where(eq(clearanceItems.clearanceId, req.params.id));
+
+    res.json({ status: 'success', data: { ...updated, items } });
   } catch (err) {
     if (err instanceof z.ZodError) {
       res.status(400).json({ status: 'error', message: 'Validation failed', errors: err.errors });

@@ -118,12 +118,27 @@ router.get('/', async (req, res, next) => {
       itemsByInvoice.set(item.invoiceId, existing);
     }
 
+    // Fetch latest customer data
+    const customerIds = [...new Set(allInvoices.map(inv => inv.customerId))];
+    const allCustomers = customerIds.length > 0
+      ? await db.select().from(customers).where(sql`${customers.id} IN ${customerIds}`)
+      : [];
+    const customerMap = new Map(allCustomers.map(c => [c.id, c]));
+
     res.json({
       status: 'success',
-      data: allInvoices.map(inv => ({
-        ...inv,
-        items: itemsByInvoice.get(inv.id) || [],
-      })),
+      data: allInvoices.map(inv => {
+        const cust = customerMap.get(inv.customerId);
+        return {
+          ...inv,
+          ...(cust ? {
+            customerName: cust.name,
+            customerPhone: cust.phone,
+            customerAddress: cust.address ? `${cust.address}${cust.city ? ', ' + cust.city : ''}` : inv.customerAddress,
+          } : {}),
+          items: itemsByInvoice.get(inv.id) || [],
+        };
+      }),
       pagination: {
         page: pageNum,
         limit: limitNum,
@@ -145,14 +160,24 @@ router.get('/:id', async (req, res, next) => {
     const [invoice] = await db.select().from(invoices).where(eq(invoices.id, req.params.id));
     if (!invoice) throw new AppError(404, 'Invoice not found');
 
-    const [items, invoicePayments] = await Promise.all([
+    const [items, invoicePayments, [customer]] = await Promise.all([
       db.select().from(invoiceItems).where(eq(invoiceItems.invoiceId, req.params.id)),
       db.select().from(payments).where(eq(payments.invoiceId, req.params.id)),
+      db.select().from(customers).where(eq(customers.id, invoice.customerId)),
     ]);
 
     res.json({
       status: 'success',
-      data: { ...invoice, items, payments: invoicePayments },
+      data: {
+        ...invoice,
+        ...(customer ? {
+          customerName: customer.name,
+          customerPhone: customer.phone,
+          customerAddress: customer.address ? `${customer.address}${customer.city ? ', ' + customer.city : ''}` : invoice.customerAddress,
+        } : {}),
+        items,
+        payments: invoicePayments,
+      },
     });
   } catch (err) {
     next(err);

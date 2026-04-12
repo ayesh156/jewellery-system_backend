@@ -38,6 +38,9 @@ router.put('/', async (req, res, next) => {
       currency: z.string().max(10).optional(),
       invoiceTerms: z.string().max(2000).optional().nullable(),
       clearanceTerms: z.string().max(2000).optional().nullable(),
+      pawnTerms: z.string().max(2000).optional().nullable(),
+      pawnInterestRate: z.string().max(10).optional(),
+      pawnInterestEnabled: z.boolean().optional(),
     }).parse(req.body);
 
     const result = await db

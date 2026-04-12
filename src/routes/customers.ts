@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { eq, like, or, sql, asc, desc } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '../db/index.js';
-import { customers } from '../db/schema.js';
+import { customers, invoices, clearances } from '../db/schema.js';
 import { AppError } from '../middleware/errorHandler.js';
 
 const router = Router();
@@ -141,6 +141,23 @@ router.put('/:id', async (req, res, next) => {
       .where(eq(customers.id, req.params.id));
     if ((result as any)[0].affectedRows === 0) throw new AppError(404, 'Customer not found');
     const [updated] = await db.select().from(customers).where(eq(customers.id, req.params.id));
+
+    // Cascade customer detail changes to clearances & invoices
+    const syncFields: Record<string, any> = {};
+    if (parsed.name !== undefined) syncFields.customerName = parsed.name;
+    if (parsed.phone !== undefined) syncFields.customerPhone = parsed.phone;
+    if (parsed.address !== undefined) syncFields.customerAddress = parsed.address;
+
+    const syncFieldsClearance: Record<string, any> = { ...syncFields };
+    if (parsed.nic !== undefined) syncFieldsClearance.customerNic = parsed.nic;
+
+    if (Object.keys(syncFields).length > 0) {
+      await db.update(invoices).set(syncFields).where(eq(invoices.customerId, req.params.id));
+    }
+    if (Object.keys(syncFieldsClearance).length > 0) {
+      await db.update(clearances).set(syncFieldsClearance).where(eq(clearances.customerId, req.params.id));
+    }
+
     res.json({ status: 'success', data: updated });
   } catch (err) {
     if (err instanceof z.ZodError) {

@@ -20,15 +20,8 @@ const PORT = parseInt(process.env.PORT || '3000', 10);
 // Middleware
 // ==========================================
 
-const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:5173')
-  .split(',')
-  .map(s => s.trim());
-
 app.use(cors({
-  origin: function(origin, callback) {
-    // Force allow all, never throw an error
-    callback(null, true);
-  },
+  origin: true,
   credentials: true,
 }));
 app.use(express.json());
