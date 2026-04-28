@@ -12,6 +12,7 @@ import clearanceRoutes from './routes/clearance.js';
 import counterRoutes from './routes/counters.js';
 import authRoutes from './routes/auth.js';
 import userRoutes from './routes/users.js';
+import pawningTermsRoutes from './routes/pawningTerms.js';
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '3000', 10);
@@ -130,6 +131,7 @@ app.use('/api/clearance', clearanceRoutes);
 app.use('/api/counters', counterRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/pawning-terms', pawningTermsRoutes);
 
 // ==========================================
 // Error Handling

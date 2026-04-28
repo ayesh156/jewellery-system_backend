@@ -18,6 +18,7 @@ import {
   seedClearancePayments,
   seedCounters,
   seedUsers,
+  seedPawningTerms,
 } from './data.js';
 
 async function seed() {
@@ -48,6 +49,7 @@ async function seed() {
   await db.delete(schema.companyInfo);
   await db.delete(schema.counters);
   await db.delete(schema.users);
+  await db.delete(schema.pawningTerms);
   console.log('   ✓ Tables cleared\n');
 
   // Seed in dependency order
@@ -110,6 +112,10 @@ async function seed() {
   console.log('👤 Seeding users...');
   await db.insert(schema.users).values(seedUsers);
   console.log(`   ✓ ${seedUsers.length} users\n`);
+
+  console.log('📜 Seeding pawning terms...');
+  await db.insert(schema.pawningTerms).values(seedPawningTerms);
+  console.log(`   ✓ ${seedPawningTerms.length} pawning terms (${seedPawningTerms.length / 3} terms × 3 languages)\n`);
 
   // Verify counts
   const [{ count: catCount }] = await db.select({ count: sql<number>`count(*)` }).from(schema.categories);

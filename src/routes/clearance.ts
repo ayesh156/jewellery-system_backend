@@ -23,6 +23,7 @@ const clearanceItemSchema = z.object({
   quantity: z.number().int().min(1).default(1),
   unitPrice: z.string(),
   originalPrice: z.string().nullish(),
+  assessedValue: z.string().nullish(), // jeweller's appraised value for pawning
   discount: z.string().nullish(),
   discountType: z.string().max(20).nullish(),
   total: z.string(),

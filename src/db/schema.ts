@@ -358,6 +358,7 @@ export const clearanceItems = mysqlTable('clearance_items', {
   quantity: int('quantity').notNull().default(1),
   unitPrice: decimal('unit_price', { precision: 14, scale: 2 }).notNull(),
   originalPrice: decimal('original_price', { precision: 14, scale: 2 }),
+  assessedValue: decimal('assessed_value', { precision: 14, scale: 2 }), // jeweller's appraised value for pawning
   discount: decimal('discount', { precision: 14, scale: 2 }),
   discountType: varchar('discount_type', { length: 20 }),
   total: decimal('total', { precision: 14, scale: 2 }).notNull(),
@@ -420,3 +421,17 @@ export const counters = mysqlTable('counters', {
 }, (table) => [
   uniqueIndex('counters_entity_shop_idx').on(table.entityType, table.shopCode),
 ]);
+
+// ==========================================
+// Pawning Terms (multilingual)
+// ==========================================
+
+export const pawningTermsLanguageEnum = mysqlEnum('pawning_terms_language', ['en', 'si', 'ta']);
+
+export const pawningTerms = mysqlTable('pawning_terms', {
+  id: varchar('id', { length: 50 }).primaryKey(),
+  groupId: int('group_id').notNull(),          // links same term across languages
+  sortOrder: int('sort_order').notNull(),       // display order (1–8)
+  language: pawningTermsLanguageEnum.notNull(), // 'en' | 'si' | 'ta'
+  termText: text('term_text').notNull(),
+});

@@ -57,10 +57,12 @@ export const seedCompanyInfo: CompanyInfoInsert = {
     'All jewellery items are hallmarked and certified for purity.',
   ].join('\n'),
   pawnTerms: [
-    'Interest is calculated at the agreed monthly rate from date of pawning.',
-    'Items must be redeemed within 6 months. Extensions available on request.',
-    'Customer NIC is mandatory for all pawn transactions.',
-    'Interest for the first month applies even if redeemed within 30 days.',
+    'Interest is calculated at the agreed monthly rate from date of pawning. / උකස් දිනයේ සිට එකඟ වූ මාසික අනුපාතයෙන් පොලිය ගණනය කෙරේ.',
+    'Items must be redeemed within 6 months. Extensions available on request. / භාණ්ඩ මාස 6 ක් ඇතුළත ආපසු ගත යුතුය. ඉල්ලීම මත දීර්ඝ කළ හැකිය.',
+    'The pawn ticket must be surrendered to redeem the pawned articles. / උකස් භාණ්ඩ ආපසු ගැනීමේදී මෙම ටිකට් පත ඉදිරිපත් කළ යුතුය.',
+    'Customer NIC is mandatory for all pawn transactions. / සියලු උකස් ගනුදෙනු සඳහා ගනුදෙනුකරුගේ ජා.හැ.අංකය අනිවාර්ය වේ.',
+    'Unclaimed items after the grace period may be forfeited without further notice. / සහන කාලය ඉකුත් වූ පසු භාණ්ඩ රඳවා ගැනීමට ආයතනයට අයිතිය ඇත.',
+    'In the event of loss of an article, only the gold value at the time of loss will be reimbursed. / භාණ්ඩයක් නැතිවූ විට, නැතිවූ අවස්ථාවේ රන් වටිනාකම පමණක් ගෙවනු ලැබේ.',
   ].join('\n'),
   pawnInterestRate: '5.00',
   pawnInterestEnabled: true,
@@ -705,5 +707,133 @@ export const seedUsers: UserInsert[] = [
     role: 'admin',
     shopCode: 'D',
     isActive: true,
+  },
+];
+
+// ==========================================
+// Pawning Terms — 8 terms × 3 languages
+// groupId: 1–8 (same term across languages)
+// sortOrder: display order on receipt
+// ==========================================
+
+type PawningTermInsert = {
+  id: string;
+  groupId: number;
+  sortOrder: number;
+  language: 'en' | 'si' | 'ta';
+  termText: string;
+};
+
+export const seedPawningTerms: PawningTermInsert[] = [
+  // ── Term 1 ──────────────────────────────────────────────────────────────
+  {
+    id: 'pt-en-01', groupId: 1, sortOrder: 1, language: 'en',
+    termText: 'The pawning advance is repayable within one year with due interest.',
+  },
+  {
+    id: 'pt-si-01', groupId: 1, sortOrder: 1, language: 'si',
+    termText: 'උකස් අත්තිකාරම් මුදල අදාළ පොළිය සමඟ වසරක් ඇතුළත ගෙවා බේරාගත යුතුය.',
+  },
+  {
+    id: 'pt-ta-01', groupId: 1, sortOrder: 1, language: 'ta',
+    termText: 'அடகு முன்பணத்தைக் குறித்த வட்டியுடன் சேர்த்து ஒரு வருடத்திற்குள் செலுத்திட வேண்டும்.',
+  },
+
+  // ── Term 2 ──────────────────────────────────────────────────────────────
+  {
+    id: 'pt-en-02', groupId: 2, sortOrder: 2, language: 'en',
+    termText: 'The Bank/Institution has the right of sale of pawned articles under Sec. 85 of the Mortgage Act.',
+  },
+  {
+    id: 'pt-si-02', groupId: 2, sortOrder: 2, language: 'si',
+    termText: 'උකස් පනතේ 85 වැනි වගන්තිය ප්‍රකාරව, උකස් කළ භාණ්ඩ විකිණීමට බැංකුවට/ආයතනයට බලය ඇත.',
+  },
+  {
+    id: 'pt-ta-02', groupId: 2, sortOrder: 2, language: 'ta',
+    termText: 'அடகு சட்டத்தின் 85 ஆவது பிரிவின் கீழ் அடகு வைக்கப்பட்ட பொருட்களை விற்பதற்கு வங்கிக்கு அதிகாரமுண்டு.',
+  },
+
+  // ── Term 3 ──────────────────────────────────────────────────────────────
+  {
+    id: 'pt-en-03', groupId: 3, sortOrder: 3, language: 'en',
+    termText: 'The pawn ticket must be surrendered to redeem the pawned articles.',
+  },
+  {
+    id: 'pt-si-03', groupId: 3, sortOrder: 3, language: 'si',
+    termText: 'උකස් කළ භාණ්ඩ බේරා ගැනීම සඳහා මෙම උකස් රිසිට්පත ඉදිරිපත් කළ යුතුය.',
+  },
+  {
+    id: 'pt-ta-03', groupId: 3, sortOrder: 3, language: 'ta',
+    termText: 'அடகு பொருட்களை மீட்டுக்கொள்வதற்கு அடகுச் சீட்டு சமர்ப்பிக்கப்பட வேண்டும்.',
+  },
+
+  // ── Term 4 ──────────────────────────────────────────────────────────────
+  {
+    id: 'pt-en-04', groupId: 4, sortOrder: 4, language: 'en',
+    termText: 'An affidavit in a form approved by the Bank and other documents specified by the Bank must be submitted to redeem the articles where this ticket is lost and/or pawner is dead.',
+  },
+  {
+    id: 'pt-si-04', groupId: 4, sortOrder: 4, language: 'si',
+    termText: 'මෙම රිසිට්පත නැති වූ අවස්ථාවක හෝ උකස්කරු මියගිය අවස්ථාවක, ආයතනය විසින් අනුමත කරන ලද දිවුරුම් ප්‍රකාශයක් හෝ වෙනත් ලේඛන ඉදිරිපත් කළ යුතුය.',
+  },
+  {
+    id: 'pt-ta-04', groupId: 4, sortOrder: 4, language: 'ta',
+    termText: 'சீட்டு தொலைந்தாலோ அல்லது அடகு வைத்தவர் இறந்தாலோ வங்கி கோரும் சத்தியக்கடதாசி அல்லது ஏனைய ஆவணங்கள் சமர்ப்பிக்கப்பட வேண்டும்.',
+  },
+
+  // ── Term 5 ──────────────────────────────────────────────────────────────
+  {
+    id: 'pt-en-05', groupId: 5, sortOrder: 5, language: 'en',
+    termText: 'Any notice under the Mortgage Act should be sent to the address given overleaf.',
+  },
+  {
+    id: 'pt-si-05', groupId: 5, sortOrder: 5, language: 'si',
+    termText: 'උකස් පනත යටතේ එවිය යුතු ඕනෑම දැනුම්දීමක් මෙහි සඳහන් කර ඇති ලිපිනයට එවනු ලැබේ.',
+  },
+  {
+    id: 'pt-ta-05', groupId: 5, sortOrder: 5, language: 'ta',
+    termText: 'அடகு சட்டத்தின் கீழ் அனுப்பப்பட வேண்டிய அறிவித்தல்கள் இதில் தரப்பட்டுள்ள முகவரிக்கு அனுப்பப்படும்.',
+  },
+
+  // ── Term 6 ──────────────────────────────────────────────────────────────
+  {
+    id: 'pt-en-06', groupId: 6, sortOrder: 6, language: 'en',
+    termText: 'In the event of the advance is not settled / renewed at the end of the period agreed, a 2.0% additional penal rate is charged.',
+  },
+  {
+    id: 'pt-si-06', groupId: 6, sortOrder: 6, language: 'si',
+    termText: 'එකඟ වූ කාලසීමාව අවසානයේදී පියවා නොගන්නා හෝ අලුත් නොකරන උකස් සඳහා 2.0% ක අතිරේක දඩ පොළියක් අය කරනු ලැබේ.',
+  },
+  {
+    id: 'pt-ta-06', groupId: 6, sortOrder: 6, language: 'ta',
+    termText: 'காலம் முடிந்தும் மீட்கப்படாத அடகுகளுக்கு 2% மேலதிக தண்டப்பணம் வசூலிக்கப்படும்.',
+  },
+
+  // ── Term 7 ──────────────────────────────────────────────────────────────
+  {
+    id: 'pt-en-07', groupId: 7, sortOrder: 7, language: 'en',
+    termText: 'The Bank reserves the right to add to or alter any of the above terms and conditions.',
+  },
+  {
+    id: 'pt-si-07', groupId: 7, sortOrder: 7, language: 'si',
+    termText: 'ඉහත කොන්දේසි ඕනෑම අවස්ථාවක වෙනස් කිරීමට හෝ අලුතින් ඇතුළත් කිරීමට බැංකුවට/ආයතනයට බලය ඇත.',
+  },
+  {
+    id: 'pt-ta-07', groupId: 7, sortOrder: 7, language: 'ta',
+    termText: 'மேலே உள்ள நிபந்தனைகளை மாற்றும் அதிகாரம் வங்கிக்கு உண்டு.',
+  },
+
+  // ── Term 8 ──────────────────────────────────────────────────────────────
+  {
+    id: 'pt-en-08', groupId: 8, sortOrder: 8, language: 'en',
+    termText: 'In the event of a loss of an article, only the value of gold at the time of loss will be reimbursed by the Bank.',
+  },
+  {
+    id: 'pt-si-08', groupId: 8, sortOrder: 8, language: 'si',
+    termText: 'භාණ්ඩයක් නැති වූ අවස්ථාවකදී ගෙවනු ලබන්නේ එම අවස්ථාවේ පවතින රන්වල වටිනාකම පමණි.',
+  },
+  {
+    id: 'pt-ta-08', groupId: 8, sortOrder: 8, language: 'ta',
+    termText: 'பொருள் இழப்பு ஏற்பட்டால் இழப்பு ஏற்படும் நேரத்தில் நிலவும் தங்கத்தின் விலை மாத்திரமே வங்கி செலுத்தும்.',
   },
 ];
