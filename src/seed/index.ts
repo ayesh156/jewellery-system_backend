@@ -49,7 +49,34 @@ async function seed() {
   await db.delete(schema.companyInfo);
   await db.delete(schema.counters);
   await db.delete(schema.users);
-  await db.delete(schema.pawningTerms);
+
+  // pawning_terms may not exist on first deploy — create it first, then clear
+  try {
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS \`pawning_terms\` (
+        \`id\` varchar(50) NOT NULL,
+        \`group_id\` int NOT NULL,
+        \`sort_order\` int NOT NULL,
+        \`pawning_terms_language\` enum('en','si','ta') NOT NULL,
+        \`term_text\` text NOT NULL,
+        PRIMARY KEY (\`id\`)
+      )
+    `);
+    await db.delete(schema.pawningTerms);
+  } catch (e) {
+    console.log('   ℹ️  pawning_terms table handled');
+  }
+
+  // assessed_value column may not exist on older deployments
+  try {
+    await db.execute(sql`
+      ALTER TABLE \`clearance_items\`
+      ADD COLUMN IF NOT EXISTS \`assessed_value\` decimal(14,2) DEFAULT NULL
+    `);
+  } catch (e) {
+    // column already exists — ignore
+  }
+
   console.log('   ✓ Tables cleared\n');
 
   // Seed in dependency order
