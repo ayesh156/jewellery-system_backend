@@ -22,8 +22,6 @@ import pawningTermsRoutes from './routes/pawningTerms.js';
 // ===================================
 // ROBUST ENVIRONMENT LOADING
 // ===================================
-// Try multiple .env paths to handle tsx (dev), production builds, and
-// VPS deployment scenarios where CWD may differ from project root.
 const envPaths = [
   path.join(process.cwd(), '.env'),
   path.join(process.cwd(), 'backend', '.env'),
@@ -44,17 +42,11 @@ const isProduction = process.env.NODE_ENV === 'production';
 
 // ===================================
 // 1. TRUST PROXY
-// Required for accurate client IP resolution behind Nginx / CyberPanel /
-// Contabo VPS reverse proxies. Without this, rate limiting and logging
-// will see the proxy IP instead of the real client IP.
 // ===================================
 app.set('trust proxy', 1);
 
 // ===================================
 // 2. HEADER DE-DUPLICATION GUARD
-// Prevents duplicate Access-Control-Allow-Origin / Vary headers caused by
-// Nginx + Express both adding them. Intercepts res.writeHead to collapse
-// any duplicated header values into a single value before flushing.
 // ===================================
 app.use((_req, res, next) => {
   const originalWriteHead = res.writeHead.bind(res);
@@ -94,7 +86,7 @@ app.use(helmet({
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
       imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'"],
+      connectSrc: ["*"], // Cross-origin API calls සඳහා allow කිරීම
     },
   } : false,
   crossOriginEmbedderPolicy: false,
@@ -102,25 +94,22 @@ app.use(helmet({
 }));
 
 // ===================================
-// 5. CUSTOM CORS (NO STANDARD CORS MIDDLEWARE)
-// No `cors()` package — we build it manually to prevent duplicate headers
-// with Nginx reverse proxy. Nginx + cors() both emit Access-Control-Allow-Origin,
-// causing CORS errors. This implementation uses setHeaderClean() which calls
-// res.removeHeader() before setHeader(), guaranteeing zero duplicates.
+// 5. CUSTOM CORS FIX
 // ===================================
 function isOriginAllowed(origin: string | undefined): boolean {
-  if (!origin) return false;
+  if (!origin) return true; // Postman / server-to-server requests allow කිරීමට
 
   // Localhost / Dev origins
   if (/^https?:\/\/localhost(:\d+)?$/i.test(origin)) return true;
   if (/^https?:\/\/127\.0\.0\.1(:\d+)?$/i.test(origin)) return true;
 
-  // Production domain from environment
+  // Environment වලින් එන Frontend URL එක
   const frontendUrl = process.env.FRONTEND_URL || '';
   if (frontendUrl && origin.toLowerCase() === frontendUrl.toLowerCase()) return true;
 
-  // Custom production domain patterns
-  if (/\.onelka\.(com|app|lk)$/i.test(origin)) return true;
+  // Production domains (ecosystemlk.app, onelka.app, etc.)
+  if (/(onelka|ecosystemlk)\.(app|lk|com)$/i.test(origin)) return true;
+  if (/^https?:\/\/([a-z0-9-]+\.)*(ecosystemlk\.app|onelka\.app)$/i.test(origin)) return true;
 
   return false;
 }
@@ -134,10 +123,17 @@ app.use((req, res, next) => {
   const origin = req.headers.origin;
 
   setHeaderClean(res, 'Vary', 'Origin');
-  setHeaderClean(res, 'Access-Control-Allow-Origin', (origin && isOriginAllowed(origin)) ? origin : '');
+
+  if (origin && isOriginAllowed(origin)) {
+    setHeaderClean(res, 'Access-Control-Allow-Origin', origin);
+  } else if (!origin) {
+    setHeaderClean(res, 'Access-Control-Allow-Origin', '*');
+  }
+
   setHeaderClean(res, 'Access-Control-Allow-Credentials', 'true');
   setHeaderClean(res, 'Access-Control-Expose-Headers', 'Set-Cookie, X-Request-ID');
 
+  // Handle preflight OPTIONS request
   if (req.method === 'OPTIONS') {
     setHeaderClean(res, 'Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
     setHeaderClean(res, 'Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Request-ID, Cache-Control, Pragma, Expires');
@@ -150,7 +146,6 @@ app.use((req, res, next) => {
 
 // ===================================
 // 6. COMPRESSION (GZIP)
-// Compresses responses > 1KB. Must be registered BEFORE body parsers.
 // ===================================
 app.use(compression({ threshold: 1024 }));
 
@@ -161,7 +156,7 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // ===================================
-// 8. COOKIE PARSER (for refresh token cookies)
+// 8. COOKIE PARSER
 // ===================================
 app.use(cookieParser());
 
@@ -180,7 +175,7 @@ app.use((_req, res, next) => {
 });
 
 // ===================================
-// 10. HEALTH CHECK — instant response, never opens DB connection
+// 10. HEALTH CHECK
 // ===================================
 app.get('/api/health', (_req, res) => {
   res.status(200).json({
@@ -192,8 +187,6 @@ app.get('/api/health', (_req, res) => {
 
 // ===================================
 // 11. API STATUS LANDING PAGE (/api/test)
-// Glassmorphism Gold Theme showing server status, environment, and
-// Sri Lanka local timestamp (Asia/Colombo)
 // ===================================
 function renderStatusPage(): string {
   const uptime = process.uptime();
@@ -231,280 +224,26 @@ function renderStatusPage(): string {
       padding: 1rem;
       position: relative;
     }
-    body::before {
-      content: '';
-      position: absolute;
-      top: -50%;
-      left: -50%;
-      width: 200%;
-      height: 200%;
-      background: radial-gradient(ellipse at 30% 50%, rgba(212, 175, 55, 0.04) 0%, transparent 50%),
-                  radial-gradient(ellipse at 70% 50%, rgba(212, 175, 55, 0.03) 0%, transparent 50%);
-      animation: shimmer 8s ease-in-out infinite alternate;
-      pointer-events: none;
-      z-index: 0;
-    }
-    @keyframes shimmer {
-      0% { transform: translateX(-5%) translateY(-2%); }
-      100% { transform: translateX(5%) translateY(2%); }
-    }
-    .bg-orb {
-      position: fixed;
-      border-radius: 50%;
-      filter: blur(120px);
-      pointer-events: none;
-      z-index: 0;
-    }
-    .bg-orb-1 {
-      width: 500px; height: 500px;
-      background: linear-gradient(135deg, #d4af37, #f5e6a3);
-      top: -200px; right: -200px;
-      opacity: 0.15;
-      animation: floatOrb 8s ease-in-out infinite alternate;
-    }
-    .bg-orb-2 {
-      width: 400px; height: 400px;
-      background: linear-gradient(135deg, #b8860b, #d4af37);
-      bottom: -150px; left: -150px;
-      opacity: 0.12;
-      animation: floatOrb 10s ease-in-out infinite alternate-reverse;
-    }
-    @keyframes floatOrb {
-      0% { transform: translate(0, 0) scale(1); }
-      100% { transform: translate(40px, 60px) scale(1.15); }
-    }
-    .container {
-      position: relative;
-      z-index: 1;
-      width: 100%;
-      max-width: 560px;
-      animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-    @keyframes fadeInUp {
-      0% { opacity: 0; transform: translateY(40px); }
-      100% { opacity: 1; transform: translateY(0); }
-    }
+    .container { position: relative; z-index: 1; width: 100%; max-width: 560px; }
     .status-card {
-      position: relative;
       background: linear-gradient(145deg, rgba(18, 18, 28, 0.95), rgba(12, 12, 20, 0.98));
       backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
       border: 1px solid rgba(212, 175, 55, 0.15);
       border-radius: 24px;
       padding: 3rem 2.5rem;
       text-align: center;
-      box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.6), 0 0 80px rgba(212, 175, 55, 0.06);
     }
-    .status-card::before {
-      content: '';
-      position: absolute;
-      inset: -1px;
-      border-radius: 24px;
-      padding: 1px;
-      background: linear-gradient(145deg, rgba(212, 175, 55, 0.3), rgba(212, 175, 55, 0.05), rgba(212, 175, 55, 0.2));
-      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-      -webkit-mask-composite: xor;
-      mask-composite: exclude;
-      pointer-events: none;
-    }
-    .icon-wrapper {
-      width: 80px; height: 80px;
-      margin: 0 auto 1.5rem;
-      background: linear-gradient(135deg, rgba(212, 175, 55, 0.15), rgba(212, 175, 55, 0.05));
-      border: 1px solid rgba(212, 175, 55, 0.25);
-      border-radius: 20px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 2.5rem;
-      animation: float 3s ease-in-out infinite;
-    }
-    @keyframes float {
-      0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(-8px); }
-    }
-    h1 {
-      font-family: 'Playfair Display', serif;
-      font-size: 2rem;
-      font-weight: 700;
-      letter-spacing: -0.5px;
-      background: linear-gradient(135deg, #d4af37, #f5e6a3, #d4af37);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-      margin-bottom: 0.75rem;
-    }
-    .subtitle {
-      font-size: 1rem;
-      color: #94a3b8;
-      margin-bottom: 2rem;
-      font-weight: 500;
-    }
-    .status-row {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.75rem;
-      padding: 0.875rem 2rem;
-      background: rgba(212, 175, 55, 0.08);
-      border: 1px solid rgba(212, 175, 55, 0.25);
-      border-radius: 100px;
-      margin-bottom: 2rem;
-    }
-    .status-dot {
-      width: 14px; height: 14px;
-      background: #d4af37;
-      border-radius: 50%;
-      position: relative;
-      flex-shrink: 0;
-      animation: pulseGlow 2s ease-in-out infinite;
-    }
-    .status-dot::after {
-      content: '';
-      position: absolute;
-      inset: -6px;
-      border-radius: 50%;
-      background: rgba(212, 175, 55, 0.2);
-      animation: pulseGlow 2s ease-in-out infinite;
-    }
-    @keyframes pulseGlow {
-      0%, 100% { box-shadow: 0 0 8px rgba(212, 175, 55, 0.6), 0 0 20px rgba(212, 175, 55, 0.3); transform: scale(1); }
-      50% { box-shadow: 0 0 16px rgba(212, 175, 55, 0.8), 0 0 40px rgba(212, 175, 55, 0.4); transform: scale(1.08); }
-    }
-    .status-text {
-      font-size: 1.25rem;
-      font-weight: 700;
-      color: #d4af37;
-    }
-    .meta-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 0.875rem;
-      margin-bottom: 1.5rem;
-    }
-    .meta-item {
-      background: rgba(255, 255, 255, 0.03);
-      border: 1px solid rgba(255, 255, 255, 0.06);
-      border-radius: 14px;
-      padding: 1rem;
-      text-align: left;
-      transition: transform 0.25s ease, background 0.25s ease;
-    }
-    .meta-item:hover {
-      transform: translateY(-3px);
-      background: rgba(255, 255, 255, 0.06);
-    }
-    .meta-label {
-      font-size: 0.7rem;
-      color: #64748b;
-      text-transform: uppercase;
-      letter-spacing: 1.5px;
-      font-weight: 600;
-      margin-bottom: 0.35rem;
-    }
-    .meta-value {
-      font-size: 0.95rem;
-      font-weight: 600;
-      color: #e2e8f0;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-    .timestamp-row {
-      text-align: center;
-      color: #64748b;
-      font-size: 0.85rem;
-      padding: 1rem 0 0;
-      border-top: 1px solid rgba(255, 255, 255, 0.06);
-    }
-    .timestamp-label {
-      font-size: 0.65rem;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      color: #475569;
-      margin-bottom: 0.25rem;
-    }
-    .footer {
-      margin-top: 1.5rem;
-      padding-top: 1rem;
-      border-top: 1px solid rgba(212, 175, 55, 0.08);
-    }
-    .footer-text {
-      font-size: 0.7rem;
-      color: rgba(255, 255, 255, 0.2);
-      letter-spacing: 1px;
-    }
-    .particles {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      pointer-events: none;
-      overflow: hidden;
-      z-index: 0;
-    }
-    .particle {
-      position: absolute;
-      width: 2px;
-      height: 2px;
-      background: rgba(212, 175, 55, 0.3);
-      border-radius: 50%;
-      animation: float linear infinite;
-    }
-    @keyframes particleFloat {
-      0% { transform: translateY(100vh) rotate(0deg); opacity: 0; }
-      10% { opacity: 1; }
-      90% { opacity: 1; }
-      100% { transform: translateY(-10vh) rotate(720deg); opacity: 0; }
-    }
-    @media (max-width: 500px) {
-      .status-card { padding: 2rem 1.5rem; }
-      h1 { font-size: 1.6rem; }
-      .meta-grid { grid-template-columns: 1fr; }
-      .status-row { padding: 0.75rem 1.25rem; }
-    }
+    h1 { font-family: 'Playfair Display', serif; color: #d4af37; font-size: 2rem; margin-bottom: 0.75rem; }
+    .status-text { font-size: 1.25rem; font-weight: 700; color: #d4af37; }
   </style>
 </head>
 <body>
-  <div class="bg-orb bg-orb-1"></div>
-  <div class="bg-orb bg-orb-2"></div>
-  <div class="particles">
-    ${Array.from({length:15},()=>`<div class="particle" style="left:${Math.random()*100}%;animation-duration:${8+Math.random()*12}s;animation-delay:${Math.random()*8}s;width:${1+Math.random()*2}px;height:${1+Math.random()*2}px;animation-name:particleFloat"></div>`).join('')}
-  </div>
   <div class="container">
     <div class="status-card">
-      <div class="icon-wrapper">💎</div>
       <h1>Onelka Jewellery API</h1>
-      <p class="subtitle">Gold & Jewellery Management System</p>
-      <div class="status-row">
-        <span class="status-dot"></span>
-        <span class="status-text">API is Operational</span>
-      </div>
-      <div class="meta-grid">
-        <div class="meta-item">
-          <div class="meta-label">Environment</div>
-          <div class="meta-value">${process.env.NODE_ENV || 'development'}</div>
-        </div>
-        <div class="meta-item">
-          <div class="meta-label">Server Port</div>
-          <div class="meta-value">${PORT}</div>
-        </div>
-        <div class="meta-item">
-          <div class="meta-label">Uptime</div>
-          <div class="meta-value">${uptimeStr}</div>
-        </div>
-        <div class="meta-item">
-          <div class="meta-label">Status</div>
-          <div class="meta-value" style="color:#d4af37">● Operational</div>
-        </div>
-      </div>
-      <div class="timestamp-row">
-        <div class="timestamp-label">Sri Lanka Time (Asia/Colombo)</div>
-        ${currentTime}
-      </div>
-      <div class="footer">
-        <div class="footer-text">&copy; ${new Date().getFullYear()} Onelka Jewellery &bull; v1.0.0</div>
-      </div>
+      <div class="status-text">API is Operational</div>
+      <p style="margin-top: 1rem; color: #94a3b8;">Uptime: ${uptimeStr}</p>
+      <p style="margin-top: 0.5rem; color: #64748b; font-size: 0.85rem;">${currentTime}</p>
     </div>
   </div>
 </body>
@@ -532,7 +271,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/pawning-terms', pawningTermsRoutes);
 
 // ===================================
-// 13. Error Handling (must be after routes)
+// 13. Error Handling
 // ===================================
 app.use(notFound);
 app.use(errorHandler);
@@ -543,9 +282,6 @@ app.use(errorHandler);
 app.listen(PORT, () => {
   console.log(`🚀 Onelka Jewellery API running on http://localhost:${PORT}`);
   console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`📡 API available at http://localhost:${PORT}/api`);
-  console.log(`📡 Status page at http://localhost:${PORT}/api/test`);
-  console.log(`❤️  Health check at http://localhost:${PORT}/api/health`);
 });
 
 export default app;
