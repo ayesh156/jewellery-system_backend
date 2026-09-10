@@ -277,11 +277,20 @@ app.use(notFound);
 app.use(errorHandler);
 
 // ===================================
-// 14. Start Server
+// 14. Start Server & LSNODE Bridge
 // ===================================
-app.listen(PORT, () => {
-  console.log(`🚀 Onelka Jewellery API running on http://localhost:${PORT}`);
-  console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-});
+const startServer = () => {
+  app.listen(PORT, () => {
+    console.log(`🚀 Onelka Jewellery API running on http://localhost:${PORT}`);
+    console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
+  });
+};
+
+// ✅ LSNODE COMPATIBILITY: Standalone dev එකේදී පමණක් listen කර, LiteSpeed යටතේ web socket / socket file එකට ඉඩ දීම
+if (!process.env.LSNODE && !process.env.PASSENGER_APP_ENV) {
+  startServer();
+} else {
+  console.log('⚡ Running under LiteSpeed lsnode engine');
+}
 
 export default app;

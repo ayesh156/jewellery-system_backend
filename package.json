@@ -3,9 +3,11 @@
   "version": "1.0.0",
   "description": "Onelka Jewellery Management System — Backend API",
   "type": "module",
+  "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc",
+    "build": "npm run db:generate && npx tsc",
+    "type-check": "tsc --noEmit",
     "start": "node dist/index.js",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
