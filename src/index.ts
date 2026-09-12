@@ -5,6 +5,7 @@ import express from 'express';
 import helmet from 'helmet';
 import compression from 'compression';
 import cookieParser from 'cookie-parser';
+import cors from 'cors';
 import crypto from 'crypto';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 import categoryRoutes from './routes/categories.js';
@@ -46,26 +47,40 @@ const isProduction = process.env.NODE_ENV === 'production';
 app.set('trust proxy', 1);
 
 // ===================================
-// 2. HEADER DE-DUPLICATION GUARD
+// 2. BULLETPROOF CORS CONFIGURATION (Standardized across all projects)
 // ===================================
-app.use((_req, res, next) => {
-  const originalWriteHead = res.writeHead.bind(res);
-  res.writeHead = function (this: typeof res, statusCode: number, ...args: any[]) {
-    const dedupe = (name: string) => {
-      const val = res.getHeader(name);
-      if (val) {
-        const first = Array.isArray(val)
-          ? String(val[0])
-          : String(val).split(',')[0];
-        res.setHeader(name, first.trim());
-      }
-    };
-    dedupe('Access-Control-Allow-Origin');
-    dedupe('Vary');
-    return originalWriteHead.call(this, statusCode, ...args);
-  } as typeof res.writeHead;
-  next();
-});
+const allowedOrigins = [
+  'https://onelka.ecosystemlk.app',
+  'https://api.onelka.ecosystemlk.app',
+  process.env.FRONTEND_URL || '',
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'http://localhost:3000'
+].filter(Boolean);
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // 1. Mobile apps, curl, server-to-server, හෝ no-origin requests allow කිරීම
+    if (!origin) return callback(null, true);
+
+    const cleanOrigin = origin.replace(/\/+$/, '');
+    const isAllowed = allowedOrigins.some(item => cleanOrigin === item.replace(/\/+$/, '')) ||
+                      /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(cleanOrigin) ||
+                      /(onelka|ecosystemlk)\.(app|lk|com)$/i.test(cleanOrigin);
+
+    if (isAllowed) {
+      return callback(null, cleanOrigin);
+    }
+
+    // 2. Error එකක් throw නොකර safe fallback එකක් ලෙස primary frontend එක echo කිරීම
+    return callback(null, 'https://onelka.ecosystemlk.app');
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'X-Requested-With', 'Accept', 'X-Request-ID'],
+  exposedHeaders: ['Set-Cookie', 'X-Request-ID'],
+  maxAge: 86400
+}));
 
 // ===================================
 // 3. REQUEST ID FOR TRACING
@@ -92,57 +107,6 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false,
   hsts: isProduction ? { maxAge: 31536000, includeSubDomains: true, preload: true } : false,
 }));
-
-// ===================================
-// 5. CUSTOM CORS FIX
-// ===================================
-function isOriginAllowed(origin: string | undefined): boolean {
-  if (!origin) return true; // Postman / server-to-server requests allow කිරීමට
-
-  // Localhost / Dev origins
-  if (/^https?:\/\/localhost(:\d+)?$/i.test(origin)) return true;
-  if (/^https?:\/\/127\.0\.0\.1(:\d+)?$/i.test(origin)) return true;
-
-  // Environment වලින් එන Frontend URL එක
-  const frontendUrl = process.env.FRONTEND_URL || '';
-  if (frontendUrl && origin.toLowerCase() === frontendUrl.toLowerCase()) return true;
-
-  // Production domains (ecosystemlk.app, onelka.app, etc.)
-  if (/(onelka|ecosystemlk)\.(app|lk|com)$/i.test(origin)) return true;
-  if (/^https?:\/\/([a-z0-9-]+\.)*(ecosystemlk\.app|onelka\.app)$/i.test(origin)) return true;
-
-  return false;
-}
-
-function setHeaderClean(res: express.Response, name: string, value: string): void {
-  res.removeHeader(name);
-  res.setHeader(name, value);
-}
-
-app.use((req, res, next) => {
-  const origin = req.headers.origin;
-
-  setHeaderClean(res, 'Vary', 'Origin');
-
-  if (origin && isOriginAllowed(origin)) {
-    setHeaderClean(res, 'Access-Control-Allow-Origin', origin);
-  } else if (!origin) {
-    setHeaderClean(res, 'Access-Control-Allow-Origin', '*');
-  }
-
-  setHeaderClean(res, 'Access-Control-Allow-Credentials', 'true');
-  setHeaderClean(res, 'Access-Control-Expose-Headers', 'Set-Cookie, X-Request-ID');
-
-  // Handle preflight OPTIONS request
-  if (req.method === 'OPTIONS') {
-    setHeaderClean(res, 'Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-    setHeaderClean(res, 'Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Request-ID, Cache-Control, Pragma, Expires');
-    setHeaderClean(res, 'Access-Control-Max-Age', '86400');
-    return res.status(204).end();
-  }
-
-  next();
-});
 
 // ===================================
 // 6. COMPRESSION (GZIP)
@@ -175,14 +139,35 @@ app.use((_req, res, next) => {
 });
 
 // ===================================
-// 10. HEALTH CHECK
+// 10. ROBUST HEALTH CHECK (Database Pool & Latency Check)
 // ===================================
-app.get('/api/health', (_req, res) => {
-  res.status(200).json({
-    status: 'ok',
-    message: 'Onelka Jewellery API is running',
-    timestamp: new Date().toISOString(),
-  });
+app.get('/api/health', async (_req, res) => {
+  const start = Date.now();
+  try {
+    // MariaDB pool එක හරහා සැබෑ connection latency එක මැනීම
+    await poolConnection.query('SELECT 1');
+    const latency = `${Date.now() - start}ms`;
+
+    res.status(200).json({
+      success: true,
+      service: 'onelka-jewellery-api',
+      status: 'healthy',
+      latency,
+      timestamp: new Date().toISOString(),
+      pool: {
+        connectionLimit: 5,
+        target: 'production-vps'
+      }
+    });
+  } catch (error) {
+    res.status(503).json({
+      success: false,
+      service: 'onelka-jewellery-api',
+      status: 'unhealthy',
+      error: (error as Error).message,
+      timestamp: new Date().toISOString(),
+    });
+  }
 });
 
 // ===================================
@@ -276,21 +261,57 @@ app.use('/api/pawning-terms', pawningTermsRoutes);
 app.use(notFound);
 app.use(errorHandler);
 
+import { poolConnection } from './db/index.js';
+
 // ===================================
 // 14. Start Server & LSNODE Bridge
 // ===================================
-const startServer = () => {
-  app.listen(PORT, () => {
+const isLSNode = Boolean(process.env.LSAPI_CHILDREN || process.env.LSNODE || process.env.PASSENGER_APP_ENV);
+let server: any;
+
+if (!isLSNode) {
+  server = app.listen(PORT, () => {
     console.log(`🚀 Onelka Jewellery API running on http://localhost:${PORT}`);
     console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`🔒 MariaDB Pool Connection Limit: 5 per instance`);
   });
+} else {
+  server = app.listen(() => {
+    console.log('⚡ Running under LiteSpeed lsnode pipe engine (Pool Limit: 5)');
+  });
+}
+
+// ===================================
+// 15. GRACEFUL SHUTDOWN (Prevent MariaDB connection leaks)
+// ===================================
+let isShuttingDown = false;
+const handleShutdown = async (signal: string) => {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+  console.log(`\n[Onelka lsnode] Received ${signal}. Closing HTTP server and MySQL pool...`);
+
+  if (server) {
+    server.close(async () => {
+      try {
+        await poolConnection.end();
+        console.log('[Onelka lsnode] MySQL Pool closed cleanly.');
+        process.exit(0);
+      } catch (err) {
+        console.error('[Onelka lsnode] Error during pool close:', err);
+        process.exit(1);
+      }
+    });
+  } else {
+    process.exit(0);
+  }
+
+  setTimeout(() => {
+    console.error('[Onelka lsnode] Force exiting after 5s timeout.');
+    process.exit(1);
+  }, 5000).unref();
 };
 
-// ✅ LSNODE COMPATIBILITY: Standalone dev එකේදී පමණක් listen කර, LiteSpeed යටතේ web socket / socket file එකට ඉඩ දීම
-if (!process.env.LSNODE && !process.env.PASSENGER_APP_ENV) {
-  startServer();
-} else {
-  console.log('⚡ Running under LiteSpeed lsnode engine');
-}
+process.on('SIGTERM', () => handleShutdown('SIGTERM'));
+process.on('SIGINT', () => handleShutdown('SIGINT'));
 
 export default app;

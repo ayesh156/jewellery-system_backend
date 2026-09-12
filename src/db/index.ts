@@ -11,7 +11,16 @@ if (!DATABASE_URL) {
   );
 }
 
-const poolConnection = mysql.createPool(DATABASE_URL);
+// Explicit connection pooling matching Ecotec/Microvision VPS architectural limits
+export const poolConnection = mysql.createPool({
+  uri: DATABASE_URL,
+  waitForConnections: true,
+  connectionLimit: 5,       // Safe VPS connection pool limit per worker (Max 5)
+  queueLimit: 0,
+  connectTimeout: 5000,     // 5s connect timeout to prevent hang
+  enableKeepAlive: true,
+  keepAliveInitialDelay: 10000,
+});
 
 export const db = drizzle(poolConnection, { schema, mode: 'default' });
 
