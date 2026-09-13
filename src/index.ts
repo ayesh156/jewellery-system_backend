@@ -47,8 +47,8 @@ const isProduction = process.env.NODE_ENV === 'production';
 app.set('trust proxy', 1);
 
 // ===================================
-// 2. HEADER DE-DUPLICATION GUARD & ZERO-DUPLICATE CORS
-// LiteSpeed appserver සහ Express අතර Access-Control-Allow-Origin double වීම (duplicate header) වළක්වයි
+// 2. BULLETPROOF CORS INTEGRATION & HEADER DE-DUPLICATION GUARD
+// Official cors package එක භාවිත කරමින් OpenLiteSpeed / lsnode හි duplicate header issues වළක්වයි
 // ===================================
 const allowedOrigins = [
   'https://onelka.ecosystemlk.app',
@@ -59,60 +59,51 @@ const allowedOrigins = [
   'http://localhost:3000'
 ].filter(Boolean);
 
-// ✅ HEADER DE-DUPLICATION: res.writeHead intercept කර duplicate Access-Control-Allow-Origin headers collapse කිරීම
+// ✅ LITESPEED HEADER DE-DUPLICATION: LiteSpeed සහ Express එකතු කරන duplicate headers එකකට collapse කිරීම
 app.use((_req, res, next) => {
   const originalWriteHead = res.writeHead.bind(res);
   res.writeHead = function (this: typeof res, statusCode: number, ...args: any[]) {
     const originHeader = res.getHeader('Access-Control-Allow-Origin');
     if (originHeader) {
-      // කමාවලින් වෙන්වී ඇති multiple values ඇත්නම් පළමු origin එක පමණක් රඳවා තබා ගැනීම
-      const singleOrigin = Array.isArray(originHeader)
-        ? String(originHeader[0])
-        : String(originHeader).split(',')[0].trim();
-      res.setHeader('Access-Control-Allow-Origin', singleOrigin);
+      const raw = Array.isArray(originHeader) ? String(originHeader[0]) : String(originHeader);
+      res.setHeader('Access-Control-Allow-Origin', raw.split(',')[0].trim());
     }
     const varyHeader = res.getHeader('Vary');
     if (varyHeader) {
-      const singleVary = Array.isArray(varyHeader)
-        ? String(varyHeader[0])
-        : String(varyHeader).split(',')[0].trim();
-      res.setHeader('Vary', singleVary);
+      const rawVary = Array.isArray(varyHeader) ? String(varyHeader[0]) : String(varyHeader);
+      res.setHeader('Vary', rawVary.split(',')[0].trim());
     }
     return originalWriteHead.call(this, statusCode, ...args);
   } as typeof res.writeHead;
   next();
 });
 
-// ✅ MANUAL CORS HANDLER: setHeaderClean භාවිතයෙන් පවතින headers ඉවත් කර තනි අගයක් පමණක් set කිරීම
-app.use((req, res, next) => {
-  const origin = req.headers.origin;
+// ✅ OFFICIAL CORS MIDDLEWARE: Standard cors package එක මගින් origin validation සහ credentials හැසිරවීම
+app.use(cors({
+  origin: (origin, callback) => {
+    // Mobile apps, postman, curl, හෝ same-origin requests allow කිරීම
+    if (!origin) return callback(null, true);
 
-  if (origin) {
     const cleanOrigin = origin.replace(/\/+$/, '');
     const isAllowed = allowedOrigins.some(item => cleanOrigin === item.replace(/\/+$/, '')) ||
                       /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(cleanOrigin) ||
                       /(onelka|ecosystemlk)\.(app|lk|com)$/i.test(cleanOrigin);
 
     if (isAllowed) {
-      res.removeHeader('Access-Control-Allow-Origin');
-      res.setHeader('Access-Control-Allow-Origin', cleanOrigin);
+      return callback(null, cleanOrigin);
     }
-  }
 
-  res.removeHeader('Access-Control-Allow-Credentials');
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Vary', 'Origin');
+    return callback(null, 'https://onelka.ecosystemlk.app');
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'X-Requested-With', 'Accept', 'X-Request-ID'],
+  exposedHeaders: ['Set-Cookie', 'X-Request-ID'],
+  maxAge: 86400
+}));
 
-  // OPTIONS Preflight requests මෙතැනින්ම 204 ලෙස terminate කිරීම
-  if (req.method === 'OPTIONS') {
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Cookie, X-Requested-With, Accept, X-Request-ID');
-    res.setHeader('Access-Control-Max-Age', '86400');
-    return res.status(204).end();
-  }
-
-  next();
-});
+// ✅ PREFLIGHT OPTIONS HANDLER: OPTIONS preflight requests cors middleware එක හරහාම 204 ලෙස terminate කිරීම
+app.options('*', cors());
 
 // ===================================
 // 3. REQUEST ID FOR TRACING
