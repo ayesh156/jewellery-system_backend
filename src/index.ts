@@ -47,7 +47,8 @@ const isProduction = process.env.NODE_ENV === 'production';
 app.set('trust proxy', 1);
 
 // ===================================
-// 2. BULLETPROOF CORS CONFIGURATION (Standardized across all projects)
+// 2. HEADER DE-DUPLICATION GUARD & ZERO-DUPLICATE CORS
+// LiteSpeed appserver සහ Express අතර Access-Control-Allow-Origin double වීම (duplicate header) වළක්වයි
 // ===================================
 const allowedOrigins = [
   'https://onelka.ecosystemlk.app',
@@ -58,29 +59,60 @@ const allowedOrigins = [
   'http://localhost:3000'
 ].filter(Boolean);
 
-app.use(cors({
-  origin: (origin, callback) => {
-    // 1. Mobile apps, curl, server-to-server, හෝ no-origin requests allow කිරීම
-    if (!origin) return callback(null, true);
+// ✅ HEADER DE-DUPLICATION: res.writeHead intercept කර duplicate Access-Control-Allow-Origin headers collapse කිරීම
+app.use((_req, res, next) => {
+  const originalWriteHead = res.writeHead.bind(res);
+  res.writeHead = function (this: typeof res, statusCode: number, ...args: any[]) {
+    const originHeader = res.getHeader('Access-Control-Allow-Origin');
+    if (originHeader) {
+      // කමාවලින් වෙන්වී ඇති multiple values ඇත්නම් පළමු origin එක පමණක් රඳවා තබා ගැනීම
+      const singleOrigin = Array.isArray(originHeader)
+        ? String(originHeader[0])
+        : String(originHeader).split(',')[0].trim();
+      res.setHeader('Access-Control-Allow-Origin', singleOrigin);
+    }
+    const varyHeader = res.getHeader('Vary');
+    if (varyHeader) {
+      const singleVary = Array.isArray(varyHeader)
+        ? String(varyHeader[0])
+        : String(varyHeader).split(',')[0].trim();
+      res.setHeader('Vary', singleVary);
+    }
+    return originalWriteHead.call(this, statusCode, ...args);
+  } as typeof res.writeHead;
+  next();
+});
 
+// ✅ MANUAL CORS HANDLER: setHeaderClean භාවිතයෙන් පවතින headers ඉවත් කර තනි අගයක් පමණක් set කිරීම
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+
+  if (origin) {
     const cleanOrigin = origin.replace(/\/+$/, '');
     const isAllowed = allowedOrigins.some(item => cleanOrigin === item.replace(/\/+$/, '')) ||
                       /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(cleanOrigin) ||
                       /(onelka|ecosystemlk)\.(app|lk|com)$/i.test(cleanOrigin);
 
     if (isAllowed) {
-      return callback(null, cleanOrigin);
+      res.removeHeader('Access-Control-Allow-Origin');
+      res.setHeader('Access-Control-Allow-Origin', cleanOrigin);
     }
+  }
 
-    // 2. Error එකක් throw නොකර safe fallback එකක් ලෙස primary frontend එක echo කිරීම
-    return callback(null, 'https://onelka.ecosystemlk.app');
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'X-Requested-With', 'Accept', 'X-Request-ID'],
-  exposedHeaders: ['Set-Cookie', 'X-Request-ID'],
-  maxAge: 86400
-}));
+  res.removeHeader('Access-Control-Allow-Credentials');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Vary', 'Origin');
+
+  // OPTIONS Preflight requests මෙතැනින්ම 204 ලෙස terminate කිරීම
+  if (req.method === 'OPTIONS') {
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Cookie, X-Requested-With, Accept, X-Request-ID');
+    res.setHeader('Access-Control-Max-Age', '86400');
+    return res.status(204).end();
+  }
+
+  next();
+});
 
 // ===================================
 // 3. REQUEST ID FOR TRACING
