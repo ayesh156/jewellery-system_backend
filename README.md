@@ -4,6 +4,25 @@ REST API for the **Onelka Jewellery Management System** — serves the frontend 
 
 **Currency:** Sri Lankan Rupees (Rs.) | **Language:** English
 
+## 🚀 Production Deployment (Contabo VPS / OpenLiteSpeed)
+
+> **Architecture Notice:**  
+> This service runs on **Drizzle ORM** with native `mysql2/promise` pooling (`connectionLimit: 5`) and a strict `globalThis` singleton cache. It does **NOT** use Prisma. Do not run `npx prisma generate`.
+
+### 📦 Standard VPS Deploy Command
+To pull latest changes, compile TypeScript, recycle OpenLiteSpeed workers, and verify health endpoints:
+
+```bash
+cd /home/api.onelka.ecosystemlk.app/public_html
+git pull origin master
+npm install
+npm run build
+pkill -9 -f "api.onelka.ecosystemlk.app"
+mkdir -p tmp && touch tmp/restart.txt
+systemctl restart lsws
+sleep 3
+curl -I [https://api.onelka.ecosystemlk.app/api/health](https://api.onelka.ecosystemlk.app/api/health)
+
 ---
 
 ## Table of Contents
