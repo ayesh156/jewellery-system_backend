@@ -11,17 +11,32 @@ if (!DATABASE_URL) {
   );
 }
 
-// Explicit connection pooling matching Ecotec/Microvision VPS architectural limits
-export const poolConnection = mysql.createPool({
-  uri: DATABASE_URL,
-  waitForConnections: true,
-  connectionLimit: 5,       // Safe VPS connection pool limit per worker (Max 5)
-  queueLimit: 0,
-  connectTimeout: 5000,     // 5s connect timeout to prevent hang
-  enableKeepAlive: true,
-  keepAliveInitialDelay: 10000,
-});
+// [FIX] Concurrency-Safe Universal Singleton Pool for Drizzle & mysql2 to eliminate duplicate instances & memory leaks
+interface GlobalDrizzle {
+  poolConnection?: mysql.Pool;
+  db?: ReturnType<typeof drizzle>;
+}
 
-export const db = drizzle(poolConnection, { schema, mode: 'default' });
+const globalForDb = globalThis as unknown as GlobalDrizzle;
+
+export const poolConnection =
+  globalForDb.poolConnection ??
+  mysql.createPool({
+    uri: DATABASE_URL,
+    waitForConnections: true,
+    connectionLimit: 5,       // Safe VPS connection pool limit per worker (Max 5)
+    queueLimit: 0,
+    connectTimeout: 15000,    // Standard 15s handshake timeout matching VPS backends
+    enableKeepAlive: true,
+    keepAliveInitialDelay: 10000,
+  });
+
+export const db =
+  globalForDb.db ??
+  drizzle(poolConnection, { schema, mode: 'default' });
+
+// Cache unconditionally across reloads
+globalForDb.poolConnection = poolConnection;
+globalForDb.db = db;
 
 export type Database = typeof db;
