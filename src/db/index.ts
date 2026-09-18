@@ -24,9 +24,9 @@ export const poolConnection =
   mysql.createPool({
     uri: DATABASE_URL,
     waitForConnections: true,
-    connectionLimit: 5,       // Safe VPS connection pool limit per worker (Max 5)
+    connectionLimit: 10,
     queueLimit: 0,
-    connectTimeout: 15000,    // Standard 15s handshake timeout matching VPS backends
+    connectTimeout: 30000,
     enableKeepAlive: true,
     keepAliveInitialDelay: 10000,
   });
