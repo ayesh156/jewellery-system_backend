@@ -1,12 +1,15 @@
 import type { Request, Response, NextFunction } from 'express';
 
 export class AppError extends Error {
+  public statusCode: number;
+
   constructor(
-    public statusCode: number,
+    statusCode: number,
     message: string,
   ) {
     super(message);
     this.name = 'AppError';
+    this.statusCode = statusCode;
   }
 }
 

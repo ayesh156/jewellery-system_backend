@@ -1,11 +1,11 @@
 import type { Request, Response } from 'express';
-import { productsService } from '../services/products.service.js';
-import { handleZodError } from '../utils/asyncHandler.js';
+import { productsService } from '../services/products.service.ts';
+import { handleZodError } from '../utils/asyncHandler.ts';
 import {
   createProductSchema,
   updateProductSchema,
   stockUpdateSchema,
-} from '../validators/products.js';
+} from '../validators/products.ts';
 
 export async function getCounts(_req: Request, res: Response) {
   const data = await productsService.getCounts();

@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { poolConnection } from './db/index.js';
+import { poolConnection } from './db/index.ts';
 
 // MariaDB Live Resource Monitor for Onelka Jewellery
 async function monitorDatabase() {

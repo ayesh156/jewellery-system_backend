@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { asyncHandler } from '../utils/asyncHandler.js';
-import * as countersController from '../controllers/counters.controller.js';
+import { asyncHandler } from '../utils/asyncHandler.ts';
+import * as countersController from '../controllers/counters.controller.ts';
 
 const router = Router();
 

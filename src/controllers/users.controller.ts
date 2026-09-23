@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
-import { usersService } from '../services/users.service.js';
-import { handleZodError } from '../utils/asyncHandler.js';
-import { createUserSchema, updateUserSchema } from '../validators/users.js';
+import { usersService } from '../services/users.service.ts';
+import { handleZodError } from '../utils/asyncHandler.ts';
+import { createUserSchema, updateUserSchema } from '../validators/users.ts';
 
 export async function list(_req: Request, res: Response) {
   const data = await usersService.findAll();

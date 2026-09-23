@@ -1,9 +1,9 @@
 import { eq, like, or, sql, asc, desc } from 'drizzle-orm';
-import { db } from '../db/index.js';
-import { customers, invoices, clearances } from '../db/schema.js';
-import { AppError } from '../middleware/errorHandler.js';
-import { MAX_PAGE_SIZE } from '../config/constants.js';
-import type { CreateCustomerInput, UpdateCustomerInput } from '../validators/customers.js';
+import { db } from '../db/index.ts';
+import { customers, invoices, clearances } from '../db/schema.ts';
+import { AppError } from '../middleware/errorHandler.ts';
+import { MAX_PAGE_SIZE } from '../config/constants.ts';
+import type { CreateCustomerInput, UpdateCustomerInput } from '../validators/customers.ts';
 
 export class CustomersService {
   async findAll(query: Record<string, string>) {

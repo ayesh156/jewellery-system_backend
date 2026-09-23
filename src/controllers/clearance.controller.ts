@@ -1,11 +1,11 @@
 import type { Request, Response } from 'express';
-import { clearanceService } from '../services/clearance.service.js';
-import { handleZodError } from '../utils/asyncHandler.js';
+import { clearanceService } from '../services/clearance.service.ts';
+import { handleZodError } from '../utils/asyncHandler.ts';
 import {
   createClearanceSchema,
   clearancePaymentSchema,
   redeemSchema,
-} from '../validators/clearance.js';
+} from '../validators/clearance.ts';
 
 export async function list(req: Request, res: Response) {
   const result = await clearanceService.findAll(req.query as Record<string, string>);

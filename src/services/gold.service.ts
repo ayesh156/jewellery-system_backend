@@ -1,8 +1,8 @@
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
-import { db } from '../db/index.js';
-import { goldRates, goldTypeConfigs } from '../db/schema.js';
-import { AppError } from '../middleware/errorHandler.js';
+import { db } from '../db/index.ts';
+import { goldRates, goldTypeConfigs } from '../db/schema.ts';
+import { AppError } from '../middleware/errorHandler.ts';
 
 const createGoldTypeSchema = z.object({
   id: z.string().min(1).max(50),

@@ -3,12 +3,14 @@
   "version": "1.0.0",
   "description": "Onelka Jewellery Management System — Backend API",
   "type": "module",
-  "main": "dist/index.js",
+  "main": "src/index.ts",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
-    "build": "npm run db:generate && npx tsc",
+    "dev": "node src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "build": "tsup src/index.ts --format esm --platform node --target node24 --out-dir dist --sourcemap",
     "type-check": "tsc --noEmit",
-    "start": "node dist/index.js",
+    "start": "node src/index.ts",
+    "start:prod": "node src/index.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
@@ -26,6 +28,7 @@
     "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.3",
     "mysql2": "^3.3.3",
+    "tsup": "^8.5.1",
     "zod": "^3.24.2"
   },
   "devDependencies": {
@@ -37,6 +40,7 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^22.10.5",
     "drizzle-kit": "^0.30.4",
+    "ts-node": "^10.9.2",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3"
   }

@@ -1,13 +1,13 @@
 import { eq, like, or, sql, asc, desc } from 'drizzle-orm';
-import { db } from '../db/index.js';
-import { clearances, clearanceItems, clearancePayments, customers } from '../db/schema.js';
-import { AppError } from '../middleware/errorHandler.js';
-import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from '../config/constants.js';
+import { db } from '../db/index.ts';
+import { clearances, clearanceItems, clearancePayments, customers } from '../db/schema.ts';
+import { AppError } from '../middleware/errorHandler.ts';
+import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from '../config/constants.ts';
 import type {
   CreateClearanceInput,
   ClearancePaymentInput,
   RedeemInput,
-} from '../validators/clearance.js';
+} from '../validators/clearance.ts';
 
 export class ClearanceService {
   async findAll(query: Record<string, string>) {

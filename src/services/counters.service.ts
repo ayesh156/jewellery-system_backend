@@ -1,7 +1,7 @@
 import { and, eq, sql } from 'drizzle-orm';
-import { db } from '../db/index.js';
-import { counters } from '../db/schema.js';
-import { DEFAULT_PREFIXES, ENTITY_TYPES } from '../config/constants.js';
+import { db } from '../db/index.ts';
+import { counters } from '../db/schema.ts';
+import { DEFAULT_PREFIXES, ENTITY_TYPES } from '../config/constants.ts';
 
 export class CountersService {
   async list(shopCode?: string) {

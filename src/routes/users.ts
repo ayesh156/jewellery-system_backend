@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import { asyncHandler } from '../utils/asyncHandler.js';
-import { authenticate, requireRole } from '../middleware/auth.js';
-import * as usersController from '../controllers/users.controller.js';
+import { asyncHandler } from '../utils/asyncHandler.ts';
+import { authenticate, requireRole } from '../middleware/auth.ts';
+import * as usersController from '../controllers/users.controller.ts';
 
 const router = Router();
 

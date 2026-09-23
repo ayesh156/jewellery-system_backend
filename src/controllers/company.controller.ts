@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
-import { companyService } from '../services/company.service.js';
-import { handleZodError } from '../utils/asyncHandler.js';
-import { updateCompanySchema } from '../validators/company.js';
+import { companyService } from '../services/company.service.ts';
+import { handleZodError } from '../utils/asyncHandler.ts';
+import { updateCompanySchema } from '../validators/company.ts';
 
 export async function get(_req: Request, res: Response) {
   const data = await companyService.get();

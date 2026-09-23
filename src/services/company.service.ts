@@ -1,8 +1,8 @@
 import { eq } from 'drizzle-orm';
-import { db } from '../db/index.js';
-import { companyInfo } from '../db/schema.js';
-import { AppError } from '../middleware/errorHandler.js';
-import type { UpdateCompanyInput } from '../validators/company.js';
+import { db } from '../db/index.ts';
+import { companyInfo } from '../db/schema.ts';
+import { AppError } from '../middleware/errorHandler.ts';
+import type { UpdateCompanyInput } from '../validators/company.ts';
 
 export class CompanyService {
   async get() {

@@ -1,6 +1,6 @@
 import { eq, asc } from 'drizzle-orm';
-import { db } from '../db/index.js';
-import { pawningTerms } from '../db/schema.js';
+import { db } from '../db/index.ts';
+import { pawningTerms } from '../db/schema.ts';
 
 export class PawningTermsService {
   async getAll() {

@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
-import { goldService } from '../services/gold.service.js';
-import { handleZodError } from '../utils/asyncHandler.js';
+import { goldService } from '../services/gold.service.ts';
+import { handleZodError } from '../utils/asyncHandler.ts';
 
 export async function getRates(_req: Request, res: Response) {
   const data = await goldService.getRates();

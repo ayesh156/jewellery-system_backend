@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { asyncHandler } from '../utils/asyncHandler.js';
-import * as clearanceController from '../controllers/clearance.controller.js';
+import { asyncHandler } from '../utils/asyncHandler.ts';
+import * as clearanceController from '../controllers/clearance.controller.ts';
 
 const router = Router();
 

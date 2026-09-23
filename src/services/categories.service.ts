@@ -1,8 +1,8 @@
 import { eq, count } from 'drizzle-orm';
-import { db } from '../db/index.js';
-import { categories, products } from '../db/schema.js';
-import { AppError } from '../middleware/errorHandler.js';
-import type { CreateCategoryInput, UpdateCategoryInput } from '../validators/categories.js';
+import { db } from '../db/index.ts';
+import { categories, products } from '../db/schema.ts';
+import { AppError } from '../middleware/errorHandler.ts';
+import type { CreateCategoryInput, UpdateCategoryInput } from '../validators/categories.ts';
 
 export class CategoriesService {
   async findAll() {

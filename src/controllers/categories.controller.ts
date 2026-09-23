@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
-import { categoriesService } from '../services/categories.service.js';
-import { handleZodError } from '../utils/asyncHandler.js';
-import { createCategorySchema, updateCategorySchema } from '../validators/categories.js';
+import { categoriesService } from '../services/categories.service.ts';
+import { handleZodError } from '../utils/asyncHandler.ts';
+import { createCategorySchema, updateCategorySchema } from '../validators/categories.ts';
 
 export async function list(_req: Request, res: Response) {
   const data = await categoriesService.findAll();

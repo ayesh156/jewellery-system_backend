@@ -14,7 +14,7 @@ import type {
   clearanceItems,
   clearancePayments,
   users,
-} from '../db/schema.js';
+} from '../db/schema.ts';
 
 type CategoryInsert = typeof categories.$inferInsert;
 type ProductInsert = typeof products.$inferInsert;

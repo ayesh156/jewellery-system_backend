@@ -7,18 +7,18 @@ import compression from 'compression';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import crypto from 'crypto';
-import { errorHandler, notFound } from './middleware/errorHandler.js';
-import categoryRoutes from './routes/categories.js';
-import productRoutes from './routes/products.js';
-import goldRoutes from './routes/gold.js';
-import companyRoutes from './routes/company.js';
-import customerRoutes from './routes/customers.js';
-import invoiceRoutes from './routes/invoices.js';
-import clearanceRoutes from './routes/clearance.js';
-import counterRoutes from './routes/counters.js';
-import authRoutes from './routes/auth.js';
-import userRoutes from './routes/users.js';
-import pawningTermsRoutes from './routes/pawningTerms.js';
+import { errorHandler, notFound } from './middleware/errorHandler.ts';
+import categoryRoutes from './routes/categories.ts';
+import productRoutes from './routes/products.ts';
+import goldRoutes from './routes/gold.ts';
+import companyRoutes from './routes/company.ts';
+import customerRoutes from './routes/customers.ts';
+import invoiceRoutes from './routes/invoices.ts';
+import clearanceRoutes from './routes/clearance.ts';
+import counterRoutes from './routes/counters.ts';
+import authRoutes from './routes/auth.ts';
+import userRoutes from './routes/users.ts';
+import pawningTermsRoutes from './routes/pawningTerms.ts';
 
 // ===================================
 // ROBUST ENVIRONMENT LOADING
@@ -284,7 +284,7 @@ app.use('/api/pawning-terms', pawningTermsRoutes);
 app.use(notFound);
 app.use(errorHandler);
 
-import { poolConnection } from './db/index.js';
+import { poolConnection } from './db/index.ts';
 
 // ===================================
 // 14. Start Server & LSNODE Bridge

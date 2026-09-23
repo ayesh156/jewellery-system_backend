@@ -1,11 +1,11 @@
 import type { Request, Response } from 'express';
-import { authService } from '../services/auth.service.js';
-import { handleZodError } from '../utils/asyncHandler.js';
+import { authService } from '../services/auth.service.ts';
+import { handleZodError } from '../utils/asyncHandler.ts';
 import {
   loginSchema,
   changePasswordSchema,
   preferencesSchema,
-} from '../validators/auth.js';
+} from '../validators/auth.ts';
 
 export async function login(req: Request, res: Response) {
   try {

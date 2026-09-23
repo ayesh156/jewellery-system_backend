@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { AppError } from './errorHandler.js';
+import { AppError } from './errorHandler.ts';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'onelka-jewellery-secret-key-change-in-production';
 const JWT_EXPIRES_IN = '7d';

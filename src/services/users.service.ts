@@ -1,10 +1,10 @@
 import bcrypt from 'bcryptjs';
 import { eq, desc, sql } from 'drizzle-orm';
-import { db } from '../db/index.js';
-import { users, counters } from '../db/schema.js';
-import { AppError } from '../middleware/errorHandler.js';
-import { BCRYPT_SALT_ROUNDS, DEFAULT_PREFIXES, ID_PREFIXES } from '../config/constants.js';
-import type { CreateUserInput, UpdateUserInput } from '../validators/users.js';
+import { db } from '../db/index.ts';
+import { users, counters } from '../db/schema.ts';
+import { AppError } from '../middleware/errorHandler.ts';
+import { BCRYPT_SALT_ROUNDS, DEFAULT_PREFIXES, ID_PREFIXES } from '../config/constants.ts';
+import type { CreateUserInput, UpdateUserInput } from '../validators/users.ts';
 
 export class UsersService {
   private readonly userColumns = {

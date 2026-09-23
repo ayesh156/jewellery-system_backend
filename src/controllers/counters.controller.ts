@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
-import { countersService } from '../services/counters.service.js';
-import { handleZodError } from '../utils/asyncHandler.js';
+import { countersService } from '../services/counters.service.ts';
+import { handleZodError } from '../utils/asyncHandler.ts';
 
 export async function list(req: Request, res: Response) {
   const { shopCode } = req.query as { shopCode?: string };

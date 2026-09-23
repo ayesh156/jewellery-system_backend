@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
-import { pawningTermsService } from '../services/pawningTerms.service.js';
-import { handleZodError } from '../utils/asyncHandler.js';
+import { pawningTermsService } from '../services/pawningTerms.service.ts';
+import { handleZodError } from '../utils/asyncHandler.ts';
 
 export async function getAll(_req: Request, res: Response) {
   const data = await pawningTermsService.getAll();

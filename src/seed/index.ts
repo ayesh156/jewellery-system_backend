@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { drizzle } from 'drizzle-orm/mysql2';
 import { sql } from 'drizzle-orm';
-import * as schema from '../db/schema.js';
+import * as schema from '../db/schema.ts';
 import {
   seedCompanyInfo,
   seedCategories,
@@ -19,7 +19,7 @@ import {
   seedCounters,
   seedUsers,
   seedPawningTerms,
-} from './data.js';
+} from './data.ts';
 
 async function seed() {
   const databaseUrl = process.env.DATABASE_URL;

@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
-import { invoicesService } from '../services/invoices.service.js';
-import { handleZodError } from '../utils/asyncHandler.js';
-import { createInvoiceSchema, paymentSchema } from '../validators/invoices.js';
+import { invoicesService } from '../services/invoices.service.ts';
+import { handleZodError } from '../utils/asyncHandler.ts';
+import { createInvoiceSchema, paymentSchema } from '../validators/invoices.ts';
 
 export async function list(req: Request, res: Response) {
   const result = await invoicesService.findAll(req.query as Record<string, string>);

@@ -1,11 +1,11 @@
 import bcrypt from 'bcryptjs';
 import { eq } from 'drizzle-orm';
-import { db } from '../db/index.js';
-import { users } from '../db/schema.js';
-import { generateToken } from '../middleware/auth.js';
-import { AppError } from '../middleware/errorHandler.js';
-import { BCRYPT_SALT_ROUNDS } from '../config/constants.js';
-import type { LoginInput, ChangePasswordInput, PreferencesInput } from '../validators/auth.js';
+import { db } from '../db/index.ts';
+import { users } from '../db/schema.ts';
+import { generateToken } from '../middleware/auth.ts';
+import { AppError } from '../middleware/errorHandler.ts';
+import { BCRYPT_SALT_ROUNDS } from '../config/constants.ts';
+import type { LoginInput, ChangePasswordInput, PreferencesInput } from '../validators/auth.ts';
 
 export class AuthService {
   /**

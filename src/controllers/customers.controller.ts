@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
-import { customersService } from '../services/customers.service.js';
-import { handleZodError } from '../utils/asyncHandler.js';
-import { createCustomerSchema, updateCustomerSchema } from '../validators/customers.js';
+import { customersService } from '../services/customers.service.ts';
+import { handleZodError } from '../utils/asyncHandler.ts';
+import { createCustomerSchema, updateCustomerSchema } from '../validators/customers.ts';
 
 export async function list(req: Request, res: Response) {
   const result = await customersService.findAll(req.query as Record<string, string>);
