@@ -48,9 +48,11 @@ app.set('trust proxy', 1);
 
 // ===================================
 // 2. BULLETPROOF CORS INTEGRATION & HEADER DE-DUPLICATION GUARD
-// Official cors package එක භාවිත කරමින් OpenLiteSpeed / lsnode හි duplicate header issues වළක්වයි
+// නව nebulainfinite.com ඩොමේන් සහ LiteSpeed de-duplication සැකසුම
 // ===================================
 const allowedOrigins = [
+  'https://onelka.nebulainfinite.com',
+  'https://api-onelka.nebulainfinite.com',
   'https://onelka.ecosystemlk.app',
   'https://api.onelka.ecosystemlk.app',
   process.env.FRONTEND_URL || '',
@@ -59,7 +61,7 @@ const allowedOrigins = [
   'http://localhost:3000'
 ].filter(Boolean);
 
-// ✅ LITESPEED HEADER DE-DUPLICATION: LiteSpeed සහ Express එකතු කරන duplicate headers එකකට collapse කිරීම
+// ✅ LITESPEED HEADER DE-DUPLICATION: Duplicate headers තනි අගයකට collapse කිරීම
 app.use((_req, res, next) => {
   const originalWriteHead = res.writeHead.bind(res);
   res.writeHead = function (this: typeof res, statusCode: number, ...args: any[]) {
@@ -78,22 +80,21 @@ app.use((_req, res, next) => {
   next();
 });
 
-// ✅ OFFICIAL CORS MIDDLEWARE: Standard cors package එක මගින් origin validation සහ credentials හැසිරවීම
+// ✅ OFFICIAL CORS MIDDLEWARE
 app.use(cors({
   origin: (origin, callback) => {
-    // Mobile apps, postman, curl, හෝ same-origin requests allow කිරීම
     if (!origin) return callback(null, true);
 
     const cleanOrigin = origin.replace(/\/+$/, '');
     const isAllowed = allowedOrigins.some(item => cleanOrigin === item.replace(/\/+$/, '')) ||
                       /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(cleanOrigin) ||
-                      /(onelka|ecosystemlk)\.(app|lk|com)$/i.test(cleanOrigin);
+                      /(onelka|ecosystemlk|nebulainfinite)\.(app|lk|com)$/i.test(cleanOrigin);
 
     if (isAllowed) {
       return callback(null, cleanOrigin);
     }
 
-    return callback(null, 'https://onelka.ecosystemlk.app');
+    return callback(null, 'https://onelka.nebulainfinite.com');
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
@@ -102,7 +103,6 @@ app.use(cors({
   maxAge: 86400
 }));
 
-// ✅ PREFLIGHT OPTIONS HANDLER: OPTIONS preflight requests cors middleware එක හරහාම 204 ලෙස terminate කිරීම
 app.options('*', cors());
 
 // ===================================
