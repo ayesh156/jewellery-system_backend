@@ -33,13 +33,22 @@ export class CategoriesService {
   }
 
   async create(input: CreateCategoryInput) {
+    const trimmedName = input.name ? input.name.trim() : '';
+    if (!trimmedName) throw new AppError(400, 'Category name is required');
+
+    const parentId = input.parentId && input.parentId.trim() ? input.parentId.trim() : null;
+    if (parentId) {
+      const parentExists = await prisma.categories.findUnique({ where: { id: parentId } });
+      if (!parentExists) throw new AppError(400, `Parent category '${parentId}' does not exist`);
+    }
+
     const created = await prisma.categories.create({
       data: {
-        id: input.id,
-        name: input.name,
-        description: input.description,
-        parent_id: input.parentId,
-        icon: input.icon,
+        id: input.id.trim(),
+        name: trimmedName,
+        description: input.description && input.description.trim() ? input.description.trim() : null,
+        parent_id: parentId,
+        icon: input.icon && input.icon.trim() ? input.icon.trim() : '💎',
         is_active: input.isActive !== undefined ? input.isActive : true,
       },
     });
@@ -51,10 +60,26 @@ export class CategoriesService {
     if (!existing) throw new AppError(404, 'Category not found');
 
     const updateData: any = {};
-    if (input.name !== undefined) updateData.name = input.name;
-    if (input.description !== undefined) updateData.description = input.description;
-    if (input.parentId !== undefined) updateData.parent_id = input.parentId;
-    if (input.icon !== undefined) updateData.icon = input.icon;
+    if (input.name !== undefined) {
+      const trimmedName = input.name.trim();
+      if (!trimmedName) throw new AppError(400, 'Category name cannot be empty');
+      updateData.name = trimmedName;
+    }
+    if (input.description !== undefined) {
+      updateData.description = input.description && input.description.trim() ? input.description.trim() : null;
+    }
+    if (input.parentId !== undefined) {
+      const parentId = input.parentId && input.parentId.trim() ? input.parentId.trim() : null;
+      if (parentId) {
+        if (parentId === id) throw new AppError(400, 'A category cannot be its own parent');
+        const parentExists = await prisma.categories.findUnique({ where: { id: parentId } });
+        if (!parentExists) throw new AppError(400, `Parent category '${parentId}' does not exist`);
+      }
+      updateData.parent_id = parentId;
+    }
+    if (input.icon !== undefined) {
+      updateData.icon = input.icon && input.icon.trim() ? input.icon.trim() : '💎';
+    }
     if (input.isActive !== undefined) updateData.is_active = input.isActive;
 
     const updated = await prisma.categories.update({

@@ -46,10 +46,10 @@ model categories {
   name             String       @db.VarChar(100)
   description      String?      @db.Text
   parent_id        String?      @db.VarChar(50)
-  icon             String?      @db.VarChar(50)
+  icon             String?      @default("💎") @db.VarChar(50)
   is_active        Boolean      @default(true)
   created_at       DateTime     @default(dbgenerated("(now())")) @db.Timestamp(0)
-  updated_at       DateTime     @default(dbgenerated("(now())")) @db.Timestamp(0)
+  updated_at       DateTime     @default(dbgenerated("(now())")) @updatedAt @db.Timestamp(0)
   categories       categories?  @relation("categoriesTocategories", fields: [parent_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "categories_parent_id_categories_id_fk")
   other_categories categories[] @relation("categoriesTocategories")
   products         Product[]

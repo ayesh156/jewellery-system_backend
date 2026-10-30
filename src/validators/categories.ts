@@ -3,9 +3,9 @@ import { z } from 'zod';
 export const createCategorySchema = z.object({
   id: z.string().min(1).max(50),
   name: z.string().min(1).max(100),
-  description: z.string().optional(),
-  parentId: z.string().max(50).optional(),
-  icon: z.string().max(50).optional(),
+  description: z.string().max(1000).nullish(),
+  parentId: z.string().max(50).nullish(),
+  icon: z.string().max(100).nullish(),
   isActive: z.boolean().default(true),
 });
 
