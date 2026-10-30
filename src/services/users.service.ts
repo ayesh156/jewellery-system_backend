@@ -1,56 +1,53 @@
 import bcrypt from 'bcryptjs';
-import { eq, desc, sql } from 'drizzle-orm';
-import { db } from '../db/index.ts';
-import { users, counters } from '../db/schema.ts';
+import { prisma } from '../lib/prisma.ts';
 import { AppError } from '../middleware/errorHandler.ts';
 import { BCRYPT_SALT_ROUNDS, DEFAULT_PREFIXES, ID_PREFIXES } from '../config/constants.ts';
 import type { CreateUserInput, UpdateUserInput } from '../validators/users.ts';
 
-export class UsersService {
-  private readonly userColumns = {
-    id: users.id,
-    username: users.username,
-    email: users.email,
-    fullName: users.fullName,
-    phone: users.phone,
-    role: users.role,
-    shopCode: users.shopCode,
-    isActive: users.isActive,
-    pawnBillFormat: users.pawnBillFormat,
-    lastLoginAt: users.lastLoginAt,
-    createdAt: users.createdAt,
-    updatedAt: users.updatedAt,
-  } as const;
+function formatUser(u: any) {
+  if (!u) return null;
+  return {
+    id: u.id,
+    username: u.username,
+    email: u.email,
+    fullName: u.full_name,
+    phone: u.phone,
+    role: u.user_role,
+    shopCode: u.shop_code,
+    isActive: u.is_active,
+    pawnBillFormat: u.pawn_bill_format,
+    lastLoginAt: u.last_login_at,
+    createdAt: u.created_at,
+    updatedAt: u.updated_at,
+  };
+}
 
+export class UsersService {
   async findAll() {
-    return db
-      .select(this.userColumns)
-      .from(users)
-      .orderBy(desc(users.createdAt));
+    const list = await prisma.users.findMany({
+      orderBy: { created_at: 'desc' },
+    });
+    return list.map(formatUser);
   }
 
   async findById(id: string) {
-    const [user] = await db
-      .select(this.userColumns)
-      .from(users)
-      .where(eq(users.id, id));
-
+    const user = await prisma.users.findUnique({
+      where: { id },
+    });
     if (!user) throw new AppError(404, 'User not found');
-    return user;
+    return formatUser(user);
   }
 
   async create(input: CreateUserInput) {
     // Check uniqueness
-    const [existingUsername] = await db
-      .select({ id: users.id })
-      .from(users)
-      .where(eq(users.username, input.username));
+    const existingUsername = await prisma.users.findUnique({
+      where: { username: input.username },
+    });
     if (existingUsername) throw new AppError(409, 'Username already exists');
 
-    const [existingEmail] = await db
-      .select({ id: users.id })
-      .from(users)
-      .where(eq(users.email, input.email));
+    const existingEmail = await prisma.users.findUnique({
+      where: { email: input.email },
+    });
     if (existingEmail) throw new AppError(409, 'Email already exists');
 
     // Hash password
@@ -58,67 +55,67 @@ export class UsersService {
     const passwordHash = await bcrypt.hash(input.password, salt);
 
     // Generate user ID
-    const [countResult] = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(users);
-    const nextNum = Number(countResult.count) + 1;
+    const count = await prisma.users.count();
+    const nextNum = count + 1;
     const userId = `${ID_PREFIXES.USER}-${String(nextNum).padStart(2, '0')}`;
 
     // Initialize counters for user's shop code
     await this.ensureShopCounters(input.shopCode);
 
-    await db.insert(users).values({
-      id: userId,
-      username: input.username,
-      email: input.email,
-      passwordHash,
-      fullName: input.fullName,
-      phone: input.phone || null,
-      role: input.role,
-      shopCode: input.shopCode,
+    const created = await prisma.users.create({
+      data: {
+        id: userId,
+        username: input.username,
+        email: input.email,
+        password_hash: passwordHash,
+        full_name: input.fullName,
+        phone: input.phone || null,
+        user_role: input.role as any,
+        shop_code: input.shopCode,
+      },
     });
 
-    return this.findById(userId);
+    return formatUser(created);
   }
 
   async update(id: string, input: UpdateUserInput) {
-    const existing = await this.findById(id);
+    const existing = await prisma.users.findUnique({ where: { id } });
+    if (!existing) throw new AppError(404, 'User not found');
 
     // Check email uniqueness if changed
     if (input.email && input.email !== existing.email) {
-      const [dup] = await db
-        .select({ id: users.id })
-        .from(users)
-        .where(eq(users.email, input.email));
+      const dup = await prisma.users.findUnique({
+        where: { email: input.email },
+      });
       if (dup) throw new AppError(409, 'Email already exists');
     }
 
-    const setFields: Record<string, any> = { updatedAt: new Date() };
-    const fields: (keyof typeof input)[] = [
-      'email', 'fullName', 'phone', 'role', 'shopCode', 'isActive', 'pawnBillFormat',
-    ];
-    for (const field of fields) {
-      if (input[field] !== undefined) setFields[field] = input[field];
-    }
+    const updateData: any = {};
+    if (input.email !== undefined) updateData.email = input.email;
+    if (input.fullName !== undefined) updateData.full_name = input.fullName;
+    if (input.phone !== undefined) updateData.phone = input.phone;
+    if (input.role !== undefined) updateData.user_role = input.role as any;
+    if (input.shopCode !== undefined) updateData.shop_code = input.shopCode;
+    if (input.isActive !== undefined) updateData.is_active = input.isActive;
+    if (input.pawnBillFormat !== undefined) updateData.pawn_bill_format = input.pawnBillFormat;
 
     // Hash new password if provided
     if (input.password) {
       const salt = await bcrypt.genSalt(BCRYPT_SALT_ROUNDS);
-      setFields.passwordHash = await bcrypt.hash(input.password, salt);
+      updateData.password_hash = await bcrypt.hash(input.password, salt);
     }
 
     // If shop code changed, auto-initialize counters
-    if (input.shopCode && input.shopCode !== existing.shopCode) {
+    if (input.shopCode && input.shopCode !== existing.shop_code) {
       await this.ensureShopCounters(input.shopCode);
     }
 
-    const result = await db
-      .update(users)
-      .set(setFields)
-      .where(eq(users.id, id));
-    if ((result as any)[0].affectedRows === 0) throw new AppError(404, 'User not found');
+    const updated = await prisma.users.update({
+      where: { id },
+      data: updateData,
+    });
 
-    return this.findById(id);
+    return formatUser(updated);
   }
 
   async delete(id: string, currentUserId: string) {
@@ -128,32 +125,31 @@ export class UsersService {
       throw new AppError(400, 'Cannot delete your own account');
     }
 
-    await db.delete(users).where(eq(users.id, id));
+    await prisma.users.delete({ where: { id } });
     return user;
   }
 
   private async ensureShopCounters(shopCode: string) {
-    const existingCounters = await db
-      .select()
-      .from(counters)
-      .where(eq(counters.shopCode, shopCode));
+    const existingCounters = await prisma.counters.findMany({
+      where: { shop_code: shopCode },
+    });
 
-    const existingTypes = new Set(existingCounters.map((c) => c.entityType));
+    const existingTypes = new Set(existingCounters.map((c) => c.entity_type));
     const toCreate = Object.keys(DEFAULT_PREFIXES).filter(
       (t) => !existingTypes.has(t),
     );
 
     if (toCreate.length > 0) {
-      await db.insert(counters).values(
-        toCreate.map((entityType) => ({
+      await prisma.counters.createMany({
+        data: toCreate.map((entityType) => ({
           id: `${ID_PREFIXES.COUNTER}-${shopCode}-${entityType}`,
-          entityType,
-          shopCode,
+          entity_type: entityType,
+          shop_code: shopCode,
           prefix: DEFAULT_PREFIXES[entityType],
-          lastNumber: 0,
-          paddingLength: 5,
+          last_number: 0,
+          padding_length: 5,
         })),
-      );
+      });
     }
   }
 }

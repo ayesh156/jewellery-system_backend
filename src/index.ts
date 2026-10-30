@@ -19,6 +19,7 @@ import counterRoutes from './routes/counters.ts';
 import authRoutes from './routes/auth.ts';
 import userRoutes from './routes/users.ts';
 import pawningTermsRoutes from './routes/pawningTerms.ts';
+import { connectDB, disconnectDB, prisma } from './lib/prisma.ts';
 
 // ===================================
 // ROBUST ENVIRONMENT LOADING
@@ -167,8 +168,8 @@ app.use((_req, res, next) => {
 app.get('/api/health', async (_req, res) => {
   const start = Date.now();
   try {
-    // MariaDB pool එක හරහා සැබෑ connection latency එක මැනීම
-    await poolConnection.query('SELECT 1');
+    // Prisma client හරහා සැබෑ connection latency එක මැනීම
+    await prisma.$queryRawUnsafe('SELECT 1');
     const latency = `${Date.now() - start}ms`;
 
     res.status(200).json({
@@ -178,7 +179,7 @@ app.get('/api/health', async (_req, res) => {
       latency,
       timestamp: new Date().toISOString(),
       pool: {
-        connectionLimit: 5,
+        connectionLimit: 15,
         target: 'production-vps'
       }
     });
@@ -284,43 +285,47 @@ app.use('/api/pawning-terms', pawningTermsRoutes);
 app.use(notFound);
 app.use(errorHandler);
 
-import { poolConnection } from './db/index.ts';
-
 // ===================================
 // 14. Start Server & LSNODE Bridge
 // ===================================
 const isLSNode = Boolean(process.env.LSAPI_CHILDREN || process.env.LSNODE || process.env.PASSENGER_APP_ENV);
 let server: any;
 
-if (!isLSNode) {
-  server = app.listen(PORT, () => {
-    console.log(`🚀 Onelka Jewellery API running on http://localhost:${PORT}`);
-    console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`🔒 MariaDB Pool Connection Limit: 5 per instance`);
-  });
-} else {
-  server = app.listen(() => {
-    console.log('⚡ Running under LiteSpeed lsnode pipe engine (Pool Limit: 5)');
-  });
+async function startServer() {
+  await connectDB();
+
+  if (!isLSNode) {
+    server = app.listen(PORT, () => {
+      console.log(`🚀 Onelka Jewellery API running on http://localhost:${PORT}`);
+      console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`🔒 Prisma Connection Pool Limit: 15 per instance`);
+    });
+  } else {
+    server = app.listen(() => {
+      console.log('⚡ Running under LiteSpeed lsnode pipe engine (Pool Limit: 15)');
+    });
+  }
 }
 
+startServer();
+
 // ===================================
-// 15. GRACEFUL SHUTDOWN (Prevent MariaDB connection leaks)
+// 15. GRACEFUL SHUTDOWN (Prevent database connection leaks)
 // ===================================
 let isShuttingDown = false;
 const handleShutdown = async (signal: string) => {
   if (isShuttingDown) return;
   isShuttingDown = true;
-  console.log(`\n[Onelka lsnode] Received ${signal}. Closing HTTP server and MySQL pool...`);
+  console.log(`\n[Onelka lsnode] Received ${signal}. Closing HTTP server and Prisma pool...`);
 
   if (server) {
     server.close(async () => {
       try {
-        await poolConnection.end();
-        console.log('[Onelka lsnode] MySQL Pool closed cleanly.');
+        await disconnectDB();
+        console.log('[Onelka lsnode] Prisma disconnected cleanly.');
         process.exit(0);
       } catch (err) {
-        console.error('[Onelka lsnode] Error during pool close:', err);
+        console.error('[Onelka lsnode] Error during Prisma disconnect:', err);
         process.exit(1);
       }
     });

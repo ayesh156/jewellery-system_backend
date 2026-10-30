@@ -1,18 +1,9 @@
-import type {
-  categories,
-  goldTypeConfigs,
-  goldRates,
-  companyInfo,
-  counters,
-  users,
-} from '../db/schema.ts';
-
-type CategoryInsert = typeof categories.$inferInsert;
-type GoldTypeInsert = typeof goldTypeConfigs.$inferInsert;
-type GoldRateInsert = typeof goldRates.$inferInsert;
-type CompanyInfoInsert = typeof companyInfo.$inferInsert;
-type CounterInsert = typeof counters.$inferInsert;
-type UserInsert = typeof users.$inferInsert;
+type CategoryInsert = { id: string; name: string; description?: string; isActive?: boolean };
+type GoldTypeInsert = { id: string; karat: any; purityPercentage: string; description: string; isActive: boolean; defaultWastagePercentage: string; color: string };
+type GoldRateInsert = { id: string; karat: any; buyingRate: string; sellingRate: string; date: string; updatedBy: string };
+type CompanyInfoInsert = any;
+type CounterInsert = { id: string; entityType: string; shopCode: string; prefix: string; lastNumber: number; paddingLength: number };
+type UserInsert = any;
 
 // ==========================================
 // 1. Company Info (ආයතනික තොරතුරු)

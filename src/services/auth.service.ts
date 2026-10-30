@@ -1,7 +1,5 @@
 import bcrypt from 'bcryptjs';
-import { eq } from 'drizzle-orm';
-import { db } from '../db/index.ts';
-import { users } from '../db/schema.ts';
+import { prisma } from '../lib/prisma.ts';
 import { generateToken } from '../middleware/auth.ts';
 import { AppError } from '../middleware/errorHandler.ts';
 import { BCRYPT_SALT_ROUNDS } from '../config/constants.ts';
@@ -14,35 +12,34 @@ export class AuthService {
   async login(input: LoginInput) {
     const { username, password } = input;
 
-    const [user] = await db
-      .select()
-      .from(users)
-      .where(eq(users.username, username.toLowerCase().trim()));
+    const user = await prisma.users.findUnique({
+      where: { username: username.toLowerCase().trim() },
+    });
 
     if (!user) {
       throw new AppError(401, 'Invalid username or password');
     }
 
-    if (!user.isActive) {
+    if (!user.is_active) {
       throw new AppError(403, 'Account is deactivated. Contact administrator.');
     }
 
-    const isValidPassword = await bcrypt.compare(password, user.passwordHash);
+    const isValidPassword = await bcrypt.compare(password, user.password_hash);
     if (!isValidPassword) {
       throw new AppError(401, 'Invalid username or password');
     }
 
     // Update last login
-    await db
-      .update(users)
-      .set({ lastLoginAt: new Date() })
-      .where(eq(users.id, user.id));
+    await prisma.users.update({
+      where: { id: user.id },
+      data: { last_login_at: new Date() },
+    });
 
     const token = generateToken({
       userId: user.id,
       username: user.username,
-      role: user.role,
-      shopCode: user.shopCode,
+      role: user.user_role,
+      shopCode: user.shop_code,
     });
 
     return {
@@ -51,11 +48,11 @@ export class AuthService {
         id: user.id,
         username: user.username,
         email: user.email,
-        fullName: user.fullName,
+        fullName: user.full_name,
         phone: user.phone,
-        role: user.role,
-        shopCode: user.shopCode,
-        pawnBillFormat: user.pawnBillFormat || 'A4',
+        role: user.user_role,
+        shopCode: user.shop_code,
+        pawnBillFormat: user.pawn_bill_format || 'A4',
       },
     };
   }
@@ -64,10 +61,9 @@ export class AuthService {
    * Get the current user's profile.
    */
   async getMe(userId: string) {
-    const [user] = await db
-      .select()
-      .from(users)
-      .where(eq(users.id, userId));
+    const user = await prisma.users.findUnique({
+      where: { id: userId },
+    });
 
     if (!user) {
       throw new AppError(404, 'User not found');
@@ -77,14 +73,14 @@ export class AuthService {
       id: user.id,
       username: user.username,
       email: user.email,
-      fullName: user.fullName,
+      fullName: user.full_name,
       phone: user.phone,
-      role: user.role,
-      shopCode: user.shopCode,
-      isActive: user.isActive,
-      pawnBillFormat: user.pawnBillFormat || 'A4',
-      lastLoginAt: user.lastLoginAt,
-      createdAt: user.createdAt,
+      role: user.user_role,
+      shopCode: user.shop_code,
+      isActive: user.is_active,
+      pawnBillFormat: user.pawn_bill_format || 'A4',
+      lastLoginAt: user.last_login_at,
+      createdAt: user.created_at,
     };
   }
 
@@ -92,16 +88,15 @@ export class AuthService {
    * Change the current user's password.
    */
   async changePassword(userId: string, input: ChangePasswordInput) {
-    const [user] = await db
-      .select()
-      .from(users)
-      .where(eq(users.id, userId));
+    const user = await prisma.users.findUnique({
+      where: { id: userId },
+    });
 
     if (!user) {
       throw new AppError(404, 'User not found');
     }
 
-    const isValid = await bcrypt.compare(input.currentPassword, user.passwordHash);
+    const isValid = await bcrypt.compare(input.currentPassword, user.password_hash);
     if (!isValid) {
       throw new AppError(400, 'Current password is incorrect');
     }
@@ -109,23 +104,23 @@ export class AuthService {
     const salt = await bcrypt.genSalt(BCRYPT_SALT_ROUNDS);
     const passwordHash = await bcrypt.hash(input.newPassword, salt);
 
-    await db
-      .update(users)
-      .set({ passwordHash, updatedAt: new Date() })
-      .where(eq(users.id, user.id));
+    await prisma.users.update({
+      where: { id: user.id },
+      data: { password_hash: passwordHash },
+    });
   }
 
   /**
    * Update user preferences.
    */
   async updatePreferences(userId: string, input: PreferencesInput) {
-    const setFields: Record<string, any> = { updatedAt: new Date() };
-    if (input.pawnBillFormat !== undefined) setFields.pawnBillFormat = input.pawnBillFormat;
+    const updateData: any = {};
+    if (input.pawnBillFormat !== undefined) updateData.pawn_bill_format = input.pawnBillFormat;
 
-    await db
-      .update(users)
-      .set(setFields)
-      .where(eq(users.id, userId));
+    await prisma.users.update({
+      where: { id: userId },
+      data: updateData,
+    });
   }
 }
 

@@ -1,13 +1,13 @@
-import { eq, asc } from 'drizzle-orm';
-import { db } from '../db/index.ts';
-import { pawningTerms } from '../db/schema.ts';
+import { prisma } from '../lib/prisma.ts';
 
 export class PawningTermsService {
   async getAll() {
-    const rows = await db
-      .select()
-      .from(pawningTerms)
-      .orderBy(asc(pawningTerms.sortOrder), asc(pawningTerms.language));
+    const rows = await prisma.pawning_terms.findMany({
+      orderBy: [
+        { sort_order: 'asc' },
+        { pawning_terms_language: 'asc' },
+      ],
+    });
 
     const grouped: Record<
       number,
@@ -15,23 +15,22 @@ export class PawningTermsService {
     > = {};
 
     for (const row of rows) {
-      if (!grouped[row.groupId]) {
-        grouped[row.groupId] = { groupId: row.groupId, sortOrder: row.sortOrder };
+      if (!grouped[row.group_id]) {
+        grouped[row.group_id] = { groupId: row.group_id, sortOrder: row.sort_order };
       }
-      grouped[row.groupId][row.language as 'en' | 'si' | 'ta'] = row.termText;
+      grouped[row.group_id][row.pawning_terms_language as 'en' | 'si' | 'ta'] = row.term_text;
     }
 
     return Object.values(grouped).sort((a, b) => a.sortOrder - b.sortOrder);
   }
 
   async getFlat(lang: string) {
-    const rows = await db
-      .select()
-      .from(pawningTerms)
-      .where(eq(pawningTerms.language, lang as any))
-      .orderBy(asc(pawningTerms.sortOrder));
+    const rows = await prisma.pawning_terms.findMany({
+      where: { pawning_terms_language: lang as any },
+      orderBy: { sort_order: 'asc' },
+    });
 
-    return rows.map((r) => r.termText);
+    return rows.map((r) => r.term_text);
   }
 
   async create(body: {
@@ -41,30 +40,29 @@ export class PawningTermsService {
     si?: string;
     ta?: string;
   }) {
-    const rows = await db
-      .select()
-      .from(pawningTerms)
-      .orderBy(asc(pawningTerms.sortOrder));
-    const maxGroup = rows.reduce((m, r) => Math.max(m, r.groupId), 0);
+    const rows = await prisma.pawning_terms.findMany({
+      orderBy: { sort_order: 'asc' },
+    });
+    const maxGroup = rows.reduce((m, r) => Math.max(m, r.group_id), 0);
     const groupId = body.groupId || maxGroup + 1;
     const sortOrder = body.sortOrder || maxGroup + 1;
 
     const toInsert = [
       {
         id: `pt-en-${String(groupId).padStart(2, '0')}-${Date.now()}`,
-        groupId,
-        sortOrder,
-        language: 'en' as const,
-        termText: body.en,
+        group_id: groupId,
+        sort_order: sortOrder,
+        pawning_terms_language: 'en' as const,
+        term_text: body.en,
       },
       ...(body.si
         ? [
             {
               id: `pt-si-${String(groupId).padStart(2, '0')}-${Date.now()}`,
-              groupId,
-              sortOrder,
-              language: 'si' as const,
-              termText: body.si,
+              group_id: groupId,
+              sort_order: sortOrder,
+              pawning_terms_language: 'si' as const,
+              term_text: body.si,
             },
           ]
         : []),
@@ -72,16 +70,16 @@ export class PawningTermsService {
         ? [
             {
               id: `pt-ta-${String(groupId).padStart(2, '0')}-${Date.now()}`,
-              groupId,
-              sortOrder,
-              language: 'ta' as const,
-              termText: body.ta,
+              group_id: groupId,
+              sort_order: sortOrder,
+              pawning_terms_language: 'ta' as const,
+              term_text: body.ta,
             },
           ]
         : []),
     ];
 
-    await db.insert(pawningTerms).values(toInsert);
+    await prisma.pawning_terms.createMany({ data: toInsert });
     return { groupId, sortOrder, en: body.en, si: body.si, ta: body.ta };
   }
 
@@ -95,24 +93,24 @@ export class PawningTermsService {
     },
   ) {
     if (body.en !== undefined) {
-      await db.delete(pawningTerms).where(eq(pawningTerms.groupId, groupId));
+      await prisma.pawning_terms.deleteMany({ where: { group_id: groupId } });
       const sortOrder = body.sortOrder || groupId;
       const toInsert = [
         {
           id: `pt-en-${String(groupId).padStart(2, '0')}-${Date.now()}`,
-          groupId,
-          sortOrder,
-          language: 'en' as const,
-          termText: body.en,
+          group_id: groupId,
+          sort_order: sortOrder,
+          pawning_terms_language: 'en' as const,
+          term_text: body.en,
         },
         ...(body.si
           ? [
               {
                 id: `pt-si-${String(groupId).padStart(2, '0')}-${Date.now()}`,
-                groupId,
-                sortOrder,
-                language: 'si' as const,
-                termText: body.si,
+                group_id: groupId,
+                sort_order: sortOrder,
+                pawning_terms_language: 'si' as const,
+                term_text: body.si,
               },
             ]
           : []),
@@ -120,22 +118,22 @@ export class PawningTermsService {
           ? [
               {
                 id: `pt-ta-${String(groupId).padStart(2, '0')}-${Date.now()}`,
-                groupId,
-                sortOrder,
-                language: 'ta' as const,
-                termText: body.ta,
+                group_id: groupId,
+                sort_order: sortOrder,
+                pawning_terms_language: 'ta' as const,
+                term_text: body.ta,
               },
             ]
           : []),
       ];
-      await db.insert(pawningTerms).values(toInsert);
+      await prisma.pawning_terms.createMany({ data: toInsert });
     }
 
     return { groupId, ...body };
   }
 
   async delete(groupId: number) {
-    await db.delete(pawningTerms).where(eq(pawningTerms.groupId, groupId));
+    await prisma.pawning_terms.deleteMany({ where: { group_id: groupId } });
     return { deleted: groupId };
   }
 }

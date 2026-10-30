@@ -1,64 +1,92 @@
-import { eq, count } from 'drizzle-orm';
-import { db } from '../db/index.ts';
-import { categories, products } from '../db/schema.ts';
+import { prisma } from '../lib/prisma.ts';
 import { AppError } from '../middleware/errorHandler.ts';
 import type { CreateCategoryInput, UpdateCategoryInput } from '../validators/categories.ts';
 
+function formatCategory(c: any) {
+  if (!c) return null;
+  return {
+    id: c.id,
+    name: c.name,
+    description: c.description,
+    parentId: c.parent_id,
+    icon: c.icon,
+    isActive: c.is_active,
+    createdAt: c.created_at,
+    updatedAt: c.updated_at,
+  };
+}
+
 export class CategoriesService {
   async findAll() {
-    return db.select().from(categories).orderBy(categories.name);
+    const list = await prisma.categories.findMany({
+      orderBy: { name: 'asc' },
+    });
+    return list.map(formatCategory);
   }
 
   async findById(id: string) {
-    const [category] = await db
-      .select()
-      .from(categories)
-      .where(eq(categories.id, id));
+    const category = await prisma.categories.findUnique({
+      where: { id },
+    });
     if (!category) throw new AppError(404, 'Category not found');
-    return category;
+    return formatCategory(category);
   }
 
   async create(input: CreateCategoryInput) {
-    await db.insert(categories).values(input);
-    return input;
+    const created = await prisma.categories.create({
+      data: {
+        id: input.id,
+        name: input.name,
+        description: input.description,
+        parent_id: input.parentId,
+        icon: input.icon,
+        is_active: input.isActive !== undefined ? input.isActive : true,
+      },
+    });
+    return formatCategory(created);
   }
 
   async update(id: string, input: UpdateCategoryInput) {
-    const result = await db
-      .update(categories)
-      .set({ ...input, updatedAt: new Date() })
-      .where(eq(categories.id, id));
-    if ((result as any)[0].affectedRows === 0) throw new AppError(404, 'Category not found');
-    return this.findById(id);
+    const existing = await prisma.categories.findUnique({ where: { id } });
+    if (!existing) throw new AppError(404, 'Category not found');
+
+    const updateData: any = {};
+    if (input.name !== undefined) updateData.name = input.name;
+    if (input.description !== undefined) updateData.description = input.description;
+    if (input.parentId !== undefined) updateData.parent_id = input.parentId;
+    if (input.icon !== undefined) updateData.icon = input.icon;
+    if (input.isActive !== undefined) updateData.is_active = input.isActive;
+
+    const updated = await prisma.categories.update({
+      where: { id },
+      data: updateData,
+    });
+    return formatCategory(updated);
   }
 
   async delete(id: string) {
-    // Check for products using this category
-    const [productCount] = await db
-      .select({ value: count() })
-      .from(products)
-      .where(eq(products.categoryId, id));
-    if (productCount && productCount.value > 0) {
+    const productCount = await prisma.product.count({
+      where: { categoryId: id },
+    });
+    if (productCount > 0) {
       throw new AppError(
         409,
-        `Cannot delete: ${productCount.value} product(s) are using this category`,
+        `Cannot delete: ${productCount} product(s) are using this category`,
       );
     }
 
-    // Check for child categories
-    const [childCount] = await db
-      .select({ value: count() })
-      .from(categories)
-      .where(eq(categories.parentId, id));
-    if (childCount && childCount.value > 0) {
+    const childCount = await prisma.categories.count({
+      where: { parent_id: id },
+    });
+    if (childCount > 0) {
       throw new AppError(
         409,
-        `Cannot delete: ${childCount.value} sub-category(s) depend on this category`,
+        `Cannot delete: ${childCount} sub-category(s) depend on this category`,
       );
     }
 
     const category = await this.findById(id);
-    await db.delete(categories).where(eq(categories.id, id));
+    await prisma.categories.delete({ where: { id } });
     return category;
   }
 }

@@ -1,0 +1,483 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Product {
+  id                  String               @id @db.VarChar(50)
+  sku                 String               @unique(map: "products_sku_idx") @db.VarChar(50)
+  barcode             String?              @db.VarChar(100)
+  name                String               @db.VarChar(200)
+  description         String?              @db.Text
+  categoryId          String               @map("category_id") @db.VarChar(50)
+  metalType           products_metal_type  @map("metal_type")
+  gold_karat          products_gold_karat?
+  metalWeight         Decimal              @map("metal_weight") @db.Decimal(10, 3)
+  metalPurity         Decimal?             @map("metal_purity") @db.Decimal(5, 2)
+  hasGemstones        Boolean              @default(false) @map("has_gemstones")
+  totalGemstoneWeight Decimal?             @map("total_gemstone_weight") @db.Decimal(8, 3)
+  metalRate           Decimal              @map("metal_rate") @db.Decimal(12, 2)
+  makingCharges       Decimal              @default(0.00) @map("making_charges") @db.Decimal(12, 2)
+  gemstoneValue       Decimal?             @map("gemstone_value") @db.Decimal(12, 2)
+  otherCharges        Decimal?             @map("other_charges") @db.Decimal(12, 2)
+  sellingPrice        Decimal              @map("selling_price") @db.Decimal(14, 2)
+  costPrice           Decimal              @map("cost_price") @db.Decimal(14, 2)
+  stockQuantity       Int                  @default(0) @map("stock_quantity")
+  reorderLevel        Int?                 @default(0) @map("reorder_level")
+  images              Json?
+  supplierId          String?              @map("supplier_id") @db.VarChar(50)
+  supplierName        String?              @map("supplier_name") @db.VarChar(200)
+  isActive            Boolean              @default(true) @map("is_active")
+  dateAdded           DateTime             @default(dbgenerated("(now())")) @map("date_added") @db.Timestamp(0)
+  lastUpdated         DateTime             @default(dbgenerated("(now())")) @updatedAt @map("last_updated") @db.Timestamp(0)
+  product_gemstones   product_gemstones[]
+  categories          categories           @relation(fields: [categoryId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "products_category_id_categories_id_fk")
+
+  @@index([categoryId], map: "products_category_id_categories_id_fk")
+  @@map("products")
+}
+
+model categories {
+  id               String       @id @db.VarChar(50)
+  name             String       @db.VarChar(100)
+  description      String?      @db.Text
+  parent_id        String?      @db.VarChar(50)
+  icon             String?      @db.VarChar(50)
+  is_active        Boolean      @default(true)
+  created_at       DateTime     @default(dbgenerated("(now())")) @db.Timestamp(0)
+  updated_at       DateTime     @default(dbgenerated("(now())")) @db.Timestamp(0)
+  categories       categories?  @relation("categoriesTocategories", fields: [parent_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "categories_parent_id_categories_id_fk")
+  other_categories categories[] @relation("categoriesTocategories")
+  products         Product[]
+
+  @@index([parent_id], map: "categories_parent_id_categories_id_fk")
+}
+
+model clearance_items {
+  id             String                     @id @db.VarChar(50)
+  clearance_id   String                     @db.VarChar(50)
+  product_id     String?                    @db.VarChar(50)
+  sku            String?                    @db.VarChar(50)
+  product_name   String                     @db.VarChar(200)
+  description    String?                    @db.Text
+  metal_type     clearance_items_metal_type
+  gold_karat     clearance_items_gold_karat
+  metal_weight   Decimal?                   @db.Decimal(10, 3)
+  quantity       Int                        @default(1)
+  unit_price     Decimal                    @db.Decimal(14, 2)
+  original_price Decimal?                   @db.Decimal(14, 2)
+  discount       Decimal?                   @db.Decimal(14, 2)
+  discount_type  String?                    @db.VarChar(20)
+  total          Decimal                    @db.Decimal(14, 2)
+  assessed_value Decimal?                   @db.Decimal(14, 2)
+  clearances     clearances                 @relation(fields: [clearance_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "clearance_items_clearance_id_clearances_id_fk")
+
+  @@index([clearance_id], map: "clearance_items_clearance_id_clearances_id_fk")
+}
+
+model clearance_payments {
+  id             String                            @id @db.VarChar(50)
+  clearance_id   String                            @db.VarChar(50)
+  amount         Decimal                           @db.Decimal(14, 2)
+  payment_method clearance_payments_payment_method
+  date           String                            @db.VarChar(10)
+  reference      String?                           @db.VarChar(100)
+  notes          String?                           @db.Text
+  created_at     DateTime                          @default(dbgenerated("(now())")) @db.Timestamp(0)
+  clearances     clearances                        @relation(fields: [clearance_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "clearance_payments_clearance_id_clearances_id_fk")
+
+  @@index([clearance_id], map: "clearance_payments_clearance_id_clearances_id_fk")
+}
+
+model clearances {
+  id                    String                    @id @db.VarChar(50)
+  clearance_number      String                    @unique(map: "clearances_number_idx") @db.VarChar(50)
+  customer_id           String                    @db.VarChar(50)
+  customer_name         String                    @db.VarChar(200)
+  customer_phone        String?                   @db.VarChar(20)
+  customer_address      String?                   @db.VarChar(300)
+  subtotal              Decimal                   @db.Decimal(14, 2)
+  discount              Decimal                   @default(0.00) @db.Decimal(14, 2)
+  discount_type         String?                   @db.VarChar(20)
+  tax                   Decimal                   @default(0.00) @db.Decimal(14, 2)
+  tax_rate              Decimal?                  @db.Decimal(5, 2)
+  total                 Decimal                   @db.Decimal(14, 2)
+  amount_paid           Decimal                   @default(0.00) @db.Decimal(14, 2)
+  balance_due           Decimal                   @default(0.00) @db.Decimal(14, 2)
+  payment_method        clearances_payment_method
+  issue_date            String                    @db.VarChar(10)
+  due_date              String?                   @db.VarChar(10)
+  invoice_status        clearances_invoice_status @default(draft)
+  clearance_reason      String?                   @db.Text
+  notes                 String?                   @db.Text
+  created_by            String?                   @db.VarChar(100)
+  created_by_user_id    String?                   @db.VarChar(50)
+  created_at            DateTime                  @default(dbgenerated("(now())")) @db.Timestamp(0)
+  updated_at            DateTime                  @default(dbgenerated("(now())")) @db.Timestamp(0)
+  monthly_interest_rate Decimal?                  @default(5.00) @db.Decimal(5, 2)
+  interest_enabled      Boolean                   @default(true)
+  pawn_date             String?                   @db.VarChar(10)
+  redemption_date       String?                   @db.VarChar(10)
+  customer_nic          String?                   @db.VarChar(20)
+  clearance_items       clearance_items[]
+  clearance_payments    clearance_payments[]
+  customers             customers                 @relation(fields: [customer_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "clearances_customer_id_customers_id_fk")
+
+  @@index([customer_id], map: "clearances_customer_id_customers_id_fk")
+}
+
+model company_info {
+  id                    String   @id @default("default") @db.VarChar(50)
+  name                  String   @db.VarChar(200)
+  tagline               String?  @db.VarChar(300)
+  logo                  String?  @db.Text
+  address               String   @db.VarChar(300)
+  city                  String   @db.VarChar(100)
+  country               String   @db.VarChar(100)
+  phone                 String   @db.VarChar(20)
+  phone2                String?  @db.VarChar(20)
+  email                 String   @db.VarChar(200)
+  website               String?  @db.VarChar(200)
+  registration_number   String?  @db.VarChar(50)
+  tax_number            String?  @db.VarChar(50)
+  default_tax_rate      Decimal? @default(0.00) @db.Decimal(5, 2)
+  currency              String?  @default("LKR") @db.VarChar(10)
+  invoice_terms         String?  @db.Text
+  clearance_terms       String?  @db.Text
+  updated_at            DateTime @default(dbgenerated("(now())")) @db.Timestamp(0)
+  pawn_terms            String?  @db.Text
+  pawn_interest_rate    Decimal? @default(5.00) @db.Decimal(5, 2)
+  pawn_interest_enabled Boolean  @default(true)
+}
+
+model counters {
+  id             String @id @db.VarChar(50)
+  entity_type    String @db.VarChar(50)
+  shop_code      String @default("A") @db.VarChar(10)
+  prefix         String @db.VarChar(20)
+  last_number    Int    @default(0)
+  padding_length Int    @default(4)
+
+  @@unique([entity_type, shop_code], map: "counters_entity_shop_idx")
+}
+
+model customers {
+  id                String                  @id @db.VarChar(50)
+  name              String                  @db.VarChar(200)
+  business_name     String?                 @db.VarChar(200)
+  email             String?                 @db.VarChar(200)
+  phone             String                  @db.VarChar(20)
+  phone2            String?                 @db.VarChar(20)
+  nic               String?                 @db.VarChar(20)
+  address           String?                 @db.VarChar(300)
+  city              String?                 @db.VarChar(100)
+  photo             String?                 @db.Text
+  registration_date String                  @db.VarChar(10)
+  total_purchased   Decimal                 @default(0.00) @db.Decimal(14, 2)
+  customer_type     customers_customer_type @default(retail)
+  is_active         Boolean                 @default(true)
+  credit_limit      Decimal?                @db.Decimal(14, 2)
+  credit_balance    Decimal?                @db.Decimal(14, 2)
+  created_at        DateTime                @default(dbgenerated("(now())")) @db.Timestamp(0)
+  updated_at        DateTime                @default(dbgenerated("(now())")) @db.Timestamp(0)
+  clearances        clearances[]
+  invoices          invoices[]
+}
+
+model gold_rates {
+  id           String                @id @db.VarChar(50)
+  gold_karat   gold_rates_gold_karat
+  buying_rate  Decimal               @db.Decimal(12, 2)
+  selling_rate Decimal               @db.Decimal(12, 2)
+  date         String                @db.VarChar(10)
+  updated_by   String?               @db.VarChar(100)
+}
+
+model gold_type_configs {
+  id                         String                       @id @db.VarChar(50)
+  gold_karat                 gold_type_configs_gold_karat
+  purity_percentage          Decimal                      @db.Decimal(5, 2)
+  description                String?                      @db.Text
+  is_active                  Boolean                      @default(true)
+  default_wastage_percentage Decimal                      @db.Decimal(5, 2)
+  color                      String?                      @db.VarChar(20)
+}
+
+model invoice_items {
+  id             String                   @id @db.VarChar(50)
+  invoice_id     String                   @db.VarChar(50)
+  product_id     String?                  @db.VarChar(50)
+  sku            String?                  @db.VarChar(50)
+  product_name   String                   @db.VarChar(200)
+  description    String?                  @db.Text
+  metal_type     invoice_items_metal_type
+  gold_karat     invoice_items_gold_karat
+  metal_weight   Decimal?                 @db.Decimal(10, 3)
+  quantity       Int                      @default(1)
+  unit_price     Decimal                  @db.Decimal(14, 2)
+  original_price Decimal?                 @db.Decimal(14, 2)
+  discount       Decimal?                 @db.Decimal(14, 2)
+  discount_type  String?                  @db.VarChar(20)
+  total          Decimal                  @db.Decimal(14, 2)
+  invoices       invoices                 @relation(fields: [invoice_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "invoice_items_invoice_id_invoices_id_fk")
+
+  @@index([invoice_id], map: "invoice_items_invoice_id_invoices_id_fk")
+}
+
+model invoices {
+  id                 String                   @id @db.VarChar(50)
+  invoice_number     String                   @unique(map: "invoices_number_idx") @db.VarChar(50)
+  customer_id        String                   @db.VarChar(50)
+  customer_name      String                   @db.VarChar(200)
+  customer_phone     String?                  @db.VarChar(20)
+  customer_address   String?                  @db.VarChar(300)
+  subtotal           Decimal                  @db.Decimal(14, 2)
+  discount           Decimal                  @default(0.00) @db.Decimal(14, 2)
+  discount_type      String?                  @db.VarChar(20)
+  tax                Decimal                  @default(0.00) @db.Decimal(14, 2)
+  tax_rate           Decimal?                 @db.Decimal(5, 2)
+  total              Decimal                  @db.Decimal(14, 2)
+  amount_paid        Decimal                  @default(0.00) @db.Decimal(14, 2)
+  balance_due        Decimal                  @default(0.00) @db.Decimal(14, 2)
+  payment_method     invoices_payment_method?
+  issue_date         String                   @db.VarChar(10)
+  due_date           String?                  @db.VarChar(10)
+  invoice_status     invoices_invoice_status  @default(draft)
+  notes              String?                  @db.Text
+  created_by         String?                  @db.VarChar(100)
+  created_by_user_id String?                  @db.VarChar(50)
+  created_at         DateTime                 @default(dbgenerated("(now())")) @db.Timestamp(0)
+  updated_at         DateTime                 @default(dbgenerated("(now())")) @db.Timestamp(0)
+  invoice_items      invoice_items[]
+  customers          customers                @relation(fields: [customer_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "invoices_customer_id_customers_id_fk")
+  payments           payments[]
+
+  @@index([customer_id], map: "invoices_customer_id_customers_id_fk")
+}
+
+model pawning_terms {
+  id                     String                               @id @db.VarChar(50)
+  group_id               Int
+  sort_order             Int
+  pawning_terms_language pawning_terms_pawning_terms_language
+  term_text              String                               @db.Text
+}
+
+model payments {
+  id             String                  @id @db.VarChar(50)
+  invoice_id     String                  @db.VarChar(50)
+  amount         Decimal                 @db.Decimal(14, 2)
+  payment_method payments_payment_method
+  date           String                  @db.VarChar(10)
+  reference      String?                 @db.VarChar(100)
+  notes          String?                 @db.Text
+  created_at     DateTime                @default(dbgenerated("(now())")) @db.Timestamp(0)
+  invoices       invoices                @relation(fields: [invoice_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "payments_invoice_id_invoices_id_fk")
+
+  @@index([invoice_id], map: "payments_invoice_id_invoices_id_fk")
+}
+
+model product_gemstones {
+  id                 String                          @id @db.VarChar(50)
+  product_id         String                          @db.VarChar(50)
+  name               String                          @db.VarChar(100)
+  gemstone_type      product_gemstones_gemstone_type
+  carat              Decimal?                        @db.Decimal(6, 3)
+  clarity            String?                         @db.VarChar(50)
+  cut                String?                         @db.VarChar(50)
+  color              String?                         @db.VarChar(50)
+  origin             String?                         @db.VarChar(100)
+  certified          Boolean?                        @default(false)
+  certificate_number String?                         @db.VarChar(100)
+  products           Product                         @relation(fields: [product_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "product_gemstones_product_id_products_id_fk")
+
+  @@index([product_id], map: "product_gemstones_product_id_products_id_fk")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model users {
+  id               String          @id @db.VarChar(50)
+  username         String          @unique(map: "users_username_idx") @db.VarChar(50)
+  email            String          @unique(map: "users_email_idx") @db.VarChar(200)
+  password_hash    String          @db.VarChar(255)
+  full_name        String          @db.VarChar(200)
+  phone            String?         @db.VarChar(20)
+  user_role        users_user_role @default(sales)
+  shop_code        String          @default("A") @db.VarChar(10)
+  is_active        Boolean         @default(true)
+  last_login_at    DateTime?       @db.Timestamp(0)
+  created_at       DateTime        @default(dbgenerated("(now())")) @db.Timestamp(0)
+  updated_at       DateTime        @default(dbgenerated("(now())")) @db.Timestamp(0)
+  pawn_bill_format String?         @default("A4") @db.VarChar(10)
+}
+
+enum gold_rates_gold_karat {
+  K24 @map("24K")
+  K22 @map("22K")
+  K21 @map("21K")
+  K18 @map("18K")
+  K14 @map("14K")
+  K10 @map("10K")
+  K9  @map("9K")
+}
+
+enum gold_type_configs_gold_karat {
+  K24 @map("24K")
+  K22 @map("22K")
+  K21 @map("21K")
+  K18 @map("18K")
+  K14 @map("14K")
+  K10 @map("10K")
+  K9  @map("9K")
+}
+
+enum clearance_payments_payment_method {
+  cash
+  card
+  bank_transfer @map("bank-transfer")
+  cheque
+  credit
+  upi
+  other
+}
+
+enum pawning_terms_pawning_terms_language {
+  en
+  si
+  ta
+}
+
+enum payments_payment_method {
+  cash
+  card
+  bank_transfer @map("bank-transfer")
+  cheque
+  credit
+  upi
+  other
+}
+
+enum product_gemstones_gemstone_type {
+  diamond
+  ruby
+  sapphire
+  emerald
+  pearl
+  topaz
+  amethyst
+  opal
+  other
+}
+
+enum clearance_items_metal_type {
+  gold
+  silver
+  platinum
+  palladium
+  white_gold @map("white-gold")
+  rose_gold  @map("rose-gold")
+}
+
+enum invoice_items_metal_type {
+  gold
+  silver
+  platinum
+  palladium
+  white_gold @map("white-gold")
+  rose_gold  @map("rose-gold")
+}
+
+enum products_metal_type {
+  gold
+  silver
+  platinum
+  palladium
+  white_gold @map("white-gold")
+  rose_gold  @map("rose-gold")
+}
+
+enum users_user_role {
+  admin
+  manager
+  sales
+  accountant
+}
+
+enum clearance_items_gold_karat {
+  K24 @map("24K")
+  K22 @map("22K")
+  K21 @map("21K")
+  K18 @map("18K")
+  K14 @map("14K")
+  K10 @map("10K")
+  K9  @map("9K")
+}
+
+enum invoice_items_gold_karat {
+  K24 @map("24K")
+  K22 @map("22K")
+  K21 @map("21K")
+  K18 @map("18K")
+  K14 @map("14K")
+  K10 @map("10K")
+  K9  @map("9K")
+}
+
+enum products_gold_karat {
+  K24 @map("24K")
+  K22 @map("22K")
+  K21 @map("21K")
+  K18 @map("18K")
+  K14 @map("14K")
+  K10 @map("10K")
+  K9  @map("9K")
+}
+
+enum customers_customer_type {
+  retail
+  wholesale
+  vip
+  credit
+}
+
+enum clearances_payment_method {
+  cash
+  card
+  bank_transfer @map("bank-transfer")
+  cheque
+  credit
+  upi
+  other
+}
+
+enum invoices_payment_method {
+  cash
+  card
+  bank_transfer @map("bank-transfer")
+  cheque
+  credit
+  upi
+  other
+}
+
+enum clearances_invoice_status {
+  draft
+  pending
+  paid
+  partial
+  cancelled
+  refunded
+}
+
+enum invoices_invoice_status {
+  draft
+  pending
+  paid
+  partial
+  cancelled
+  refunded
+}

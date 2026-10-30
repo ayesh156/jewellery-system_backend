@@ -1,36 +1,18 @@
-import type {
-  categories,
-  products,
-  productGemstones,
-  goldTypeConfigs,
-  goldRates,
-  companyInfo,
-  customers,
-  invoices,
-  invoiceItems,
-  payments,
-  counters,
-  clearances,
-  clearanceItems,
-  clearancePayments,
-  users,
-} from '../db/schema.ts';
-
-type CategoryInsert = typeof categories.$inferInsert;
-type ProductInsert = typeof products.$inferInsert;
-type GemstoneInsert = typeof productGemstones.$inferInsert;
-type GoldTypeInsert = typeof goldTypeConfigs.$inferInsert;
-type GoldRateInsert = typeof goldRates.$inferInsert;
-type CompanyInfoInsert = typeof companyInfo.$inferInsert;
-type CustomerInsert = typeof customers.$inferInsert;
-type InvoiceInsert = typeof invoices.$inferInsert;
-type InvoiceItemInsert = typeof invoiceItems.$inferInsert;
-type PaymentInsert = typeof payments.$inferInsert;
-type CounterInsert = typeof counters.$inferInsert;
-type ClearanceInsert = typeof clearances.$inferInsert;
-type ClearanceItemInsert = typeof clearanceItems.$inferInsert;
-type ClearancePaymentInsert = typeof clearancePayments.$inferInsert;
-type UserInsert = typeof users.$inferInsert;
+type CategoryInsert = any;
+type ProductInsert = any;
+type GemstoneInsert = any;
+type GoldTypeInsert = any;
+type GoldRateInsert = any;
+type CompanyInfoInsert = any;
+type CustomerInsert = any;
+type InvoiceInsert = any;
+type InvoiceItemInsert = any;
+type PaymentInsert = any;
+type CounterInsert = any;
+type ClearanceInsert = any;
+type ClearanceItemInsert = any;
+type ClearancePaymentInsert = any;
+type UserInsert = any;
 
 // ==========================================
 // Company Info

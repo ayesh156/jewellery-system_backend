@@ -1,9 +1,31 @@
-import { eq, like, or, sql, asc, desc } from 'drizzle-orm';
-import { db } from '../db/index.ts';
-import { customers, invoices, clearances } from '../db/schema.ts';
+import { prisma } from '../lib/prisma.ts';
 import { AppError } from '../middleware/errorHandler.ts';
 import { MAX_PAGE_SIZE } from '../config/constants.ts';
 import type { CreateCustomerInput, UpdateCustomerInput } from '../validators/customers.ts';
+
+function formatCustomer(c: any) {
+  if (!c) return null;
+  return {
+    id: c.id,
+    name: c.name,
+    businessName: c.business_name,
+    email: c.email,
+    phone: c.phone,
+    phone2: c.phone2,
+    nic: c.nic,
+    address: c.address,
+    city: c.city,
+    photo: c.photo,
+    registrationDate: c.registration_date,
+    totalPurchased: c.total_purchased,
+    customerType: c.customer_type,
+    isActive: c.is_active,
+    creditLimit: c.credit_limit,
+    creditBalance: c.credit_balance,
+    createdAt: c.created_at,
+    updatedAt: c.updated_at,
+  };
+}
 
 export class CustomersService {
   async findAll(query: Record<string, string>) {
@@ -21,94 +43,138 @@ export class CustomersService {
     const limitNum = Math.min(MAX_PAGE_SIZE, Math.max(1, parseInt(limit) || 50));
     const offset = (pageNum - 1) * limitNum;
 
-    const conditions: ReturnType<typeof sql>[] = [];
-    if (search) {
-      conditions.push(
-        or(like(customers.name, `%${search}%`), like(customers.phone, `%${search}%`)) as any,
-      );
+    const where: any = {};
+    if (search && search.trim()) {
+      const q = search.trim();
+      where.OR = [
+        { name: { contains: q } },
+        { phone: { contains: q } },
+        { email: { contains: q } },
+        { business_name: { contains: q } },
+      ];
     }
-    if (customerType) conditions.push(eq(customers.customerType, customerType as any) as any);
-    if (isActive !== undefined)
-      conditions.push(eq(customers.isActive, isActive === 'true') as any);
+    if (customerType) where.customer_type = customerType as any;
+    if (isActive !== undefined) where.is_active = isActive === 'true';
 
-    const where =
-      conditions.length > 0 ? sql`${sql.join(conditions, sql` AND `)}` : undefined;
+    const sortFieldMap: Record<string, string> = {
+      name: 'name',
+      phone: 'phone',
+      registrationDate: 'registration_date',
+      totalPurchased: 'total_purchased',
+      createdAt: 'created_at',
+      updatedAt: 'updated_at',
+    };
+    const orderColumn = sortFieldMap[sortBy] || sortBy;
+    const orderBy: any = {};
+    orderBy[orderColumn] = sortOrder === 'desc' ? 'desc' : 'asc';
 
-    const sortColumn = (customers as any)[sortBy] || customers.name;
-    const orderByClause = sortOrder === 'desc' ? desc(sortColumn) : asc(sortColumn);
-
-    const [allCustomers, [{ count }]] = await Promise.all([
-      db
-        .select()
-        .from(customers)
-        .where(where)
-        .orderBy(orderByClause)
-        .limit(limitNum)
-        .offset(offset),
-      db
-        .select({ count: sql<number>`count(*)` })
-        .from(customers)
-        .where(where),
+    const [allCustomers, count] = await Promise.all([
+      prisma.customers.findMany({
+        where,
+        orderBy,
+        take: limitNum,
+        skip: offset,
+      }),
+      prisma.customers.count({ where }),
     ]);
 
     return {
-      data: allCustomers,
+      data: allCustomers.map(formatCustomer),
       pagination: {
         page: pageNum,
         limit: limitNum,
-        total: Number(count),
-        totalPages: Math.ceil(Number(count) / limitNum),
+        total: count,
+        totalPages: Math.ceil(count / limitNum),
       },
     };
   }
 
   async findById(id: string) {
-    const [customer] = await db
-      .select()
-      .from(customers)
-      .where(eq(customers.id, id));
+    const customer = await prisma.customers.findUnique({
+      where: { id },
+    });
     if (!customer) throw new AppError(404, 'Customer not found');
-    return customer;
+    return formatCustomer(customer);
   }
 
   async create(input: CreateCustomerInput) {
-    await db.insert(customers).values({
-      ...input,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+    const created = await prisma.customers.create({
+      data: {
+        id: input.id,
+        name: input.name,
+        business_name: input.businessName,
+        email: input.email,
+        phone: input.phone,
+        phone2: input.phone2,
+        nic: input.nic,
+        address: input.address,
+        city: input.city,
+        photo: input.photo,
+        registration_date: input.registrationDate,
+        total_purchased: (input.totalPurchased || '0') as any,
+        customer_type: (input.customerType || 'retail') as any,
+        is_active: input.isActive !== undefined ? input.isActive : true,
+        credit_limit: input.creditLimit ? (input.creditLimit as any) : undefined,
+        credit_balance: input.creditBalance ? (input.creditBalance as any) : undefined,
+      },
     });
-    return this.findById(input.id);
+    return formatCustomer(created);
   }
 
   async update(id: string, input: UpdateCustomerInput) {
-    const result = await db
-      .update(customers)
-      .set({ ...input, updatedAt: new Date() })
-      .where(eq(customers.id, id));
-    if ((result as any)[0].affectedRows === 0) throw new AppError(404, 'Customer not found');
+    const existing = await prisma.customers.findUnique({ where: { id } });
+    if (!existing) throw new AppError(404, 'Customer not found');
+
+    const updateData: any = {};
+    if (input.name !== undefined) updateData.name = input.name;
+    if (input.businessName !== undefined) updateData.business_name = input.businessName;
+    if (input.email !== undefined) updateData.email = input.email;
+    if (input.phone !== undefined) updateData.phone = input.phone;
+    if (input.phone2 !== undefined) updateData.phone2 = input.phone2;
+    if (input.nic !== undefined) updateData.nic = input.nic;
+    if (input.address !== undefined) updateData.address = input.address;
+    if (input.city !== undefined) updateData.city = input.city;
+    if (input.photo !== undefined) updateData.photo = input.photo;
+    if (input.registrationDate !== undefined) updateData.registration_date = input.registrationDate;
+    if (input.totalPurchased !== undefined) updateData.total_purchased = input.totalPurchased as any;
+    if (input.customerType !== undefined) updateData.customer_type = input.customerType as any;
+    if (input.isActive !== undefined) updateData.is_active = input.isActive;
+    if (input.creditLimit !== undefined) updateData.credit_limit = input.creditLimit as any;
+    if (input.creditBalance !== undefined) updateData.credit_balance = input.creditBalance as any;
+
+    const updated = await prisma.customers.update({
+      where: { id },
+      data: updateData,
+    });
 
     // Cascade customer detail changes to clearances & invoices
     const syncFields: Record<string, any> = {};
-    if (input.name !== undefined) syncFields.customerName = input.name;
-    if (input.phone !== undefined) syncFields.customerPhone = input.phone;
-    if (input.address !== undefined) syncFields.customerAddress = input.address;
+    if (input.name !== undefined) syncFields.customer_name = input.name;
+    if (input.phone !== undefined) syncFields.customer_phone = input.phone;
+    if (input.address !== undefined) syncFields.customer_address = input.address;
 
     const syncFieldsClearance: Record<string, any> = { ...syncFields };
-    if (input.nic !== undefined) syncFieldsClearance.customerNic = input.nic;
+    if (input.nic !== undefined) syncFieldsClearance.customer_nic = input.nic;
 
     if (Object.keys(syncFields).length > 0) {
-      await db.update(invoices).set(syncFields).where(eq(invoices.customerId, id));
+      await prisma.invoices.updateMany({
+        where: { customer_id: id },
+        data: syncFields,
+      });
     }
     if (Object.keys(syncFieldsClearance).length > 0) {
-      await db.update(clearances).set(syncFieldsClearance).where(eq(clearances.customerId, id));
+      await prisma.clearances.updateMany({
+        where: { customer_id: id },
+        data: syncFieldsClearance,
+      });
     }
 
-    return this.findById(id);
+    return formatCustomer(updated);
   }
 
   async delete(id: string) {
     const customer = await this.findById(id);
-    await db.delete(customers).where(eq(customers.id, id));
+    await prisma.customers.delete({ where: { id } });
     return customer;
   }
 }
