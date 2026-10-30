@@ -46,7 +46,7 @@ model categories {
   name             String       @db.VarChar(100)
   description      String?      @db.Text
   parent_id        String?      @db.VarChar(50)
-  icon             String?      @default("💎") @db.VarChar(50)
+  icon             String?      @db.VarChar(50)
   is_active        Boolean      @default(true)
   created_at       DateTime     @default(dbgenerated("(now())")) @db.Timestamp(0)
   updated_at       DateTime     @default(dbgenerated("(now())")) @updatedAt @db.Timestamp(0)
